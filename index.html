@@ -4,516 +4,199 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>DRISHTI — Intrusion Surveillance System</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&family=Teko:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<title>DRISHTI — Real-Time Intrusion Surveillance</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
 <style>
-/* ═══════════════════════════════════════════════════════
-   DRISHTI  ·  INTRUSION SURVEILLANCE SYSTEM
-   Design Language: Indian Army · Tactical Command
-   Palette: Deep Crimson · Blood Red · Burnished Gold
-   ═══════════════════════════════════════════════════════ */
-
-:root {
-/* Crimson-Red-Gold palette */
-–crimson:    #8B0000;
-–crimson2:   #6B0000;
-–red:        #CC1100;
-–red-bright: #FF2200;
-–red-alert:  #FF1744;
-–gold:       #C9A84C;
-–gold2:      #E8C96A;
-–gold-dim:   #7A6030;
-–amber:      #FF8C00;
-
-/* Backgrounds */
-–bg:         #0A0203;
-–bg2:        #0F0305;
-–panel:      #120407;
-–panel2:     #180509;
-–surface:    #1E060A;
-
-/* Borders */
-–bdr:        #3A0A10;
-–bdr2:       #5A1018;
-–bdr-gold:   #4A3010;
-
-/* Text */
-–txt:        #E8C0B0;
-–txt-dim:    #804040;
-–txt-muted:  #3A1515;
+:root{
+  --g:#00ff88;--g2:#00cc66;--r:#ff1744;--y:#ffd600;--b:#00b0ff;
+  --bg:#020508;--p1:#050c10;--p2:#081018;
+  --bdr:#0c2018;--bdr2:#14301e;
+  --txt:#70ffb8;--dim:#246040;--dim2:#0c1e14;
 }
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--txt);font-family:'Rajdhani',sans-serif;}
 
-*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-html, body { width:100%; height:100%; overflow:hidden; background:var(–bg); color:var(–txt); font-family:‘Rajdhani’, sans-serif; }
+/* Scanline */
+body::before{content:’’;position:fixed;inset:0;pointer-events:none;z-index:8000;
+background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,0.75)100%),
+repeating-linear-gradient(0deg,transparent 0,transparent 2px,rgba(0,255,100,0.016)2px,rgba(0,255,100,0.016)4px);}
 
-/* ── Atmospheric texture overlay ── */
-body::before {
-content:’’;
-position:fixed; inset:0; pointer-events:none; z-index:9500;
-background:
-radial-gradient(ellipse 80% 50% at 50% 0%, rgba(139,0,0,0.08) 0%, transparent 60%),
-radial-gradient(ellipse at 0% 100%, rgba(139,0,0,0.06) 0%, transparent 50%),
-radial-gradient(ellipse at 100% 100%, rgba(201,168,76,0.04) 0%, transparent 50%),
-repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(200,60,40,0.013) 3px, rgba(200,60,40,0.013) 4px);
-}
+.app{display:flex;flex-direction:column;height:100vh;}
 
-/* ── Vignette ── */
-body::after {
-content:’’;
-position:fixed; inset:0; pointer-events:none; z-index:9400;
-background: radial-gradient(ellipse at center, transparent 50%, rgba(0,0,0,0.65) 100%);
+/* ── HEADER ── */
+.hdr{
+background:linear-gradient(90deg,var(–p1)0%,#061210 100%);
+border-bottom:1px solid var(–bdr2);
+padding:0 14px;height:54px;
+display:flex;align-items:center;justify-content:space-between;
+flex-shrink:0;position:relative;overflow:hidden;
 }
+.hdr::after{content:’’;position:absolute;bottom:0;left:0;right:0;height:1px;
+background:linear-gradient(90deg,transparent,var(–g),transparent);opacity:0.35;}
+.hdr-l{display:flex;align-items:center;gap:12px;}
+.emblem{width:38px;height:38px;flex-shrink:0;}
+.emblem svg{width:100%;height:100%;}
+.brand h1{font-family:‘Orbitron’,monospace;font-size:19px;font-weight:900;color:var(–g);
+letter-spacing:5px;line-height:1;text-shadow:0 0 18px rgba(0,255,136,0.55);}
+.brand p{font-family:‘Share Tech Mono’,monospace;font-size:8px;color:var(–dim);letter-spacing:1.5px;margin-top:2px;}
+.hdr-c{position:absolute;left:50%;transform:translateX(-50%);display:flex;gap:10px;align-items:center;}
+.badge{font-family:‘Share Tech Mono’,monospace;font-size:9px;letter-spacing:2px;
+border:1px solid var(–bdr2);padding:3px 8px;color:var(–dim);background:var(–dim2);}
+.badge.live{border-color:var(–g2);color:var(–g);background:rgba(0,255,136,0.05);animation:glow 2s infinite;}
+@keyframes glow{0%,100%{box-shadow:none}50%{box-shadow:0 0 8px rgba(0,255,136,0.3)}}
+.hdr-r{text-align:right;}
+.clock{font-family:‘Orbitron’,monospace;font-size:15px;font-weight:600;color:var(–g);
+letter-spacing:2px;text-shadow:0 0 10px rgba(0,255,136,0.4);}
+.unit{font-family:‘Share Tech Mono’,monospace;font-size:8px;color:var(–dim);letter-spacing:1px;}
 
-/* ═══ LAYOUT ═══ */
-.app { display:flex; flex-direction:column; height:100vh; }
+/* ── LAYOUT ── */
+.body{display:flex;flex:1;overflow:hidden;}
 
-/* ═══ HEADER ═══ */
-.hdr {
-height:58px; flex-shrink:0;
-background: linear-gradient(90deg, var(–bg2) 0%, #160408 40%, #120305 60%, var(–bg2) 100%);
-border-bottom: 1px solid var(–bdr2);
-display:flex; align-items:center; justify-content:space-between;
-padding: 0 16px;
-position:relative; overflow:hidden;
-}
+/* ── VIDEO ZONE ── */
+.feed{position:relative;flex:1;background:#000;overflow:hidden;}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none;}
+canvas#ov{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
 
-/* Gold top line */
-.hdr::before {
-content:’’;
-position:absolute; top:0; left:0; right:0; height:2px;
-background: linear-gradient(90deg, transparent 0%, var(–gold-dim) 20%, var(–gold) 50%, var(–gold-dim) 80%, transparent 100%);
-}
-
-/* Crimson bottom glow */
-.hdr::after {
-content:’’;
-position:absolute; bottom:0; left:0; right:0; height:1px;
-background: linear-gradient(90deg, transparent, var(–red), var(–crimson), var(–red), transparent);
-opacity:0.6;
-}
-
-/* Diagonal accent lines */
-.hdr-accent {
-position:absolute; inset:0; pointer-events:none; overflow:hidden;
-}
-.hdr-accent::before {
-content:’’;
-position:absolute; top:0; left:180px;
-width:1px; height:100%;
-background: linear-gradient(180deg, var(–gold-dim), transparent);
-opacity:0.4;
-}
-.hdr-accent::after {
-content:’’;
-position:absolute; top:0; right:200px;
-width:1px; height:100%;
-background: linear-gradient(180deg, var(–gold-dim), transparent);
-opacity:0.4;
-}
-
-.hdr-left { display:flex; align-items:center; gap:14px; z-index:1; }
-
-/* Emblem */
-.emblem {
-width:42px; height:42px; flex-shrink:0;
-position:relative;
-}
-.emblem svg { width:100%; height:100%; }
-
-/* Brand */
-.brand-name {
-font-family:‘Bebas Neue’, sans-serif;
-font-size:32px;
-color:var(–gold2);
-letter-spacing:8px;
-line-height:1;
-text-shadow:
-0 0 20px rgba(201,168,76,0.5),
-0 0 40px rgba(201,168,76,0.2),
-0 2px 4px rgba(0,0,0,0.8);
-}
-.brand-sub {
-font-family:‘Share Tech Mono’, monospace;
-font-size:8px;
-color:var(–gold-dim);
-letter-spacing:2px;
-margin-top:1px;
-text-transform:uppercase;
-}
-
-/* Centre badges */
-.hdr-center {
-position:absolute; left:50%; transform:translateX(-50%);
-display:flex; gap:8px; align-items:center; z-index:1;
-}
-.hdr-badge {
-font-family:‘Share Tech Mono’, monospace;
-font-size:9px; letter-spacing:2px;
-padding:3px 10px;
-border:1px solid var(–bdr-gold);
-color:var(–gold-dim);
-background:rgba(201,168,76,0.04);
-}
-.hdr-badge.live {
-border-color:var(–gold);
-color:var(–gold);
-background:rgba(201,168,76,0.08);
-animation:gold-pulse 2s infinite;
-}
-@keyframes gold-pulse {
-0%,100%{ box-shadow:none; }
-50%{ box-shadow:0 0 10px rgba(201,168,76,0.3); }
-}
-
-/* Clock / unit */
-.hdr-right { text-align:right; z-index:1; }
-.clock {
-font-family:‘Teko’, sans-serif;
-font-size:22px; font-weight:500;
-color:var(–gold2);
-letter-spacing:3px; line-height:1;
-text-shadow:0 0 12px rgba(201,168,76,0.4);
-}
-.unit-line {
-font-family:‘Share Tech Mono’, monospace;
-font-size:8px; color:var(–gold-dim);
-letter-spacing:2px; margin-top:1px;
-}
-
-/* ═══ BODY ═══ */
-.body { display:flex; flex:1; overflow:hidden; }
-
-/* ═══ FEED ZONE ═══ */
-.feed {
-position:relative; flex:1;
-background:#000; overflow:hidden;
-}
-
-video {
-position:absolute; inset:0;
-width:100%; height:100%;
-object-fit:cover; display:none;
-}
-canvas#ov {
-position:absolute; inset:0;
-width:100%; height:100%;
-pointer-events:none;
-}
-
-/* Corner brackets — gold */
-.brk { position:absolute; width:26px; height:26px; pointer-events:none; z-index:10; display:none; }
-.brk.tl { top:14px; left:14px; border-top:2px solid var(–gold); border-left:2px solid var(–gold); }
-.brk.tr { top:14px; right:14px; border-top:2px solid var(–gold); border-right:2px solid var(–gold); }
-.brk.bl { bottom:14px; left:14px; border-bottom:2px solid var(–gold); border-left:2px solid var(–gold); }
-.brk.br { bottom:14px; right:14px; border-bottom:2px solid var(–gold); border-right:2px solid var(–gold); }
+/* Corner brackets */
+.brk{position:absolute;width:24px;height:24px;pointer-events:none;z-index:10;display:none;}
+.brk.tl{top:12px;left:12px;border-top:2px solid var(–g);border-left:2px solid var(–g);}
+.brk.tr{top:12px;right:12px;border-top:2px solid var(–g);border-right:2px solid var(–g);}
+.brk.bl{bottom:12px;left:12px;border-bottom:2px solid var(–g);border-left:2px solid var(–g);}
+.brk.br{bottom:12px;right:12px;border-bottom:2px solid var(–g);border-right:2px solid var(–g);}
 
 /* HUD text */
-.hud {
-position:absolute; font-family:‘Share Tech Mono’, monospace;
-font-size:10px; line-height:1.9;
-pointer-events:none; z-index:10; display:none;
-text-shadow:0 1px 6px rgba(0,0,0,0.95);
-color:rgba(201,168,76,0.85);
-}
-.hud.tl { top:14px; left:48px; }
-.hud.tr { top:14px; right:48px; text-align:right; }
-.hud.bl { bottom:14px; left:48px; }
-.hud.br { bottom:14px; right:48px; text-align:right; }
+.hud{position:absolute;font-family:‘Share Tech Mono’,monospace;font-size:10px;
+line-height:1.9;pointer-events:none;z-index:10;display:none;
+text-shadow:0 1px 4px rgba(0,0,0,0.9);}
+.hud.tl{top:12px;left:44px;color:rgba(0,255,136,0.85);}
+.hud.tr{top:12px;right:44px;text-align:right;color:rgba(0,255,136,0.85);}
+.hud.bl{bottom:12px;left:44px;color:rgba(0,255,136,0.85);}
+.hud.br{bottom:12px;right:44px;text-align:right;color:rgba(0,255,136,0.85);}
 
 /* Threat banner */
-.thr-ban {
-position:absolute; top:50%; left:50%;
-transform:translate(-50%,-50%);
-font-family:‘Bebas Neue’, sans-serif;
-letter-spacing:5px;
-padding:12px 32px;
-border:2px solid;
-text-align:center;
-display:none; pointer-events:none; z-index:20;
-white-space:nowrap;
+.thr-ban{
+position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+font-family:‘Orbitron’,monospace;font-weight:900;letter-spacing:3px;
+padding:11px 26px;border:2px solid;text-align:center;
+display:none;pointer-events:none;z-index:20;white-space:nowrap;
 }
-.thr-ban.show { display:block; animation:ban-blink 0.6s infinite; }
-@keyframes ban-blink { 0%,100%{opacity:1} 50%{opacity:0.5} }
+.thr-ban.show{display:block;animation:bk 0.55s infinite;}
+@keyframes bk{0%,100%{opacity:1}50%{opacity:0.5}}
+.thr-ban.enemy{font-size:clamp(13px,3.5vw,22px);color:var(–r);border-color:var(–r);
+background:rgba(255,23,68,0.12);text-shadow:0 0 18px var(–r);box-shadow:0 0 28px rgba(255,23,68,0.22);}
+.thr-ban.logistics{font-size:clamp(12px,3vw,19px);color:var(–y);border-color:var(–y);
+background:rgba(255,214,0,0.08);text-shadow:0 0 15px var(–y);}
+.thr-ban.motion{font-size:clamp(12px,2.5vw,17px);color:var(–b);border-color:var(–b);
+background:rgba(0,176,255,0.08);text-shadow:0 0 12px var(–b);}
 
-.thr-ban.enemy {
-font-size:clamp(16px,4vw,28px);
-color:var(–red-alert); border-color:var(–red-alert);
-background:rgba(255,23,68,0.1);
-text-shadow:0 0 20px var(–red-alert), 0 0 40px rgba(255,23,68,0.4);
-box-shadow:0 0 40px rgba(255,23,68,0.2), inset 0 0 40px rgba(255,23,68,0.04);
-}
-.thr-ban.logistics {
-font-size:clamp(14px,3.5vw,24px);
-color:var(–amber); border-color:var(–amber);
-background:rgba(255,140,0,0.08);
-text-shadow:0 0 16px var(–amber);
-box-shadow:0 0 25px rgba(255,140,0,0.18);
-}
-.thr-ban.motion {
-font-size:clamp(13px,3vw,20px);
-color:var(–gold2); border-color:var(–gold);
-background:rgba(201,168,76,0.07);
-text-shadow:0 0 14px var(–gold2);
-box-shadow:0 0 18px rgba(201,168,76,0.15);
-}
+/* Idle screen */
+.idle{position:absolute;inset:0;display:flex;flex-direction:column;
+align-items:center;justify-content:center;gap:22px;background:var(–bg);z-index:30;}
+.idle-ring{width:84px;height:84px;border-radius:50%;border:2px solid var(–bdr2);
+display:flex;align-items:center;justify-content:center;
+animation:idlep 3s ease-in-out infinite;}
+@keyframes idlep{0%,100%{box-shadow:0 0 8px rgba(0,255,136,0.1)}50%{box-shadow:0 0 22px rgba(0,255,136,0.28)}}
+.idle-ring svg{width:48%;height:48%;opacity:0.45;}
+.idle-txt{font-family:‘Share Tech Mono’,monospace;font-size:11px;color:var(–dim);
+letter-spacing:2px;text-align:center;line-height:2.3;}
+.act-btn{font-family:‘Orbitron’,monospace;font-size:12px;font-weight:700;letter-spacing:4px;
+padding:15px 38px;border:2px solid var(–g);background:transparent;color:var(–g);
+cursor:pointer;transition:all 0.2s;text-shadow:0 0 10px rgba(0,255,136,0.3);
+box-shadow:0 0 18px rgba(0,255,136,0.1);}
+.act-btn:hover{background:rgba(0,255,136,0.05);box-shadow:0 0 28px rgba(0,255,136,0.22);}
+.act-btn:active{transform:scale(0.97);}
 
-/* ─── IDLE SCREEN ─── */
-.idle {
-position:absolute; inset:0; z-index:30;
-display:flex; flex-direction:column; align-items:center; justify-content:center; gap:28px;
-background:radial-gradient(ellipse at center, #120205 0%, var(–bg) 70%);
-}
+/* Loading screen */
+.load{position:absolute;inset:0;display:none;flex-direction:column;
+align-items:center;justify-content:center;gap:18px;
+background:rgba(2,5,8,0.96);z-index:30;}
+.spin{width:50px;height:50px;border:2px solid var(–bdr2);
+border-top:2px solid var(–g);border-right:2px solid var(–g2);
+border-radius:50%;animation:spin 0.7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-msg{font-family:‘Share Tech Mono’,monospace;font-size:11px;color:var(–g);
+letter-spacing:2px;text-align:center;}
+.load-bar{width:210px;height:2px;background:var(–bdr);overflow:hidden;}
+.load-fill{height:100%;width:0%;background:var(–g);transition:width 0.35s;box-shadow:0 0 8px var(–g);}
 
-.idle-emblem {
-width:90px; height:90px; position:relative;
-animation:idle-rot 12s linear infinite;
-}
-.idle-emblem svg { width:100%; height:100%; }
-@keyframes idle-rot { 0%{} 100%{} } /* subtle glow pulse instead */
+/* ── SIDEBAR ── */
+.side{width:265px;flex-shrink:0;background:var(–p1);
+border-left:1px solid var(–bdr);display:flex;flex-direction:column;overflow:hidden;}
 
-.idle-glow {
-width:90px; height:90px; border-radius:50%;
-border:1px solid var(–gold-dim);
-display:flex; align-items:center; justify-content:center;
-animation:idle-pulse 3s ease-in-out infinite;
-box-shadow:0 0 0 1px var(–crimson2);
-}
-@keyframes idle-pulse {
-0%,100%{ box-shadow:0 0 10px rgba(139,0,0,0.2), 0 0 0 1px var(–crimson2); }
-50%{ box-shadow:0 0 30px rgba(201,168,76,0.2), 0 0 0 1px var(–gold-dim); }
-}
+.pnl{border-bottom:1px solid var(–bdr);padding:11px 13px;}
+.pnl-h{font-family:‘Orbitron’,monospace;font-size:9px;color:var(–dim);letter-spacing:3px;
+margin-bottom:9px;padding-bottom:5px;border-bottom:1px solid var(–dim2);
+display:flex;align-items:center;gap:5px;}
+.pnl-h::before{content:’’;width:3px;height:9px;background:var(–g2);box-shadow:0 0 4px var(–g2);}
 
-.idle-title {
-font-family:‘Teko’, sans-serif;
-font-size:13px; font-weight:400;
-color:var(–txt-dim); letter-spacing:3px;
-text-align:center; line-height:2.4;
-}
-.idle-title strong {
-display:block;
-font-family:‘Bebas Neue’, sans-serif;
-font-size:20px; color:var(–gold-dim);
-letter-spacing:6px; margin-bottom:4px;
-}
+/* Threat assess */
+.ta{font-family:‘Orbitron’,monospace;font-size:12px;font-weight:700;letter-spacing:2px;
+padding:11px;text-align:center;border:1px solid var(–bdr2);color:var(–dim);transition:all 0.3s;}
+.ta.standby{color:var(–dim);border-color:var(–bdr2);}
+.ta.motion{color:var(–b);border-color:var(–b);box-shadow:0 0 10px rgba(0,176,255,0.2);text-shadow:0 0 8px var(–b);}
+.ta.logistics{color:var(–y);border-color:var(–y);box-shadow:0 0 10px rgba(255,214,0,0.18);}
+.ta.enemy{color:var(–r);border-color:var(–r);box-shadow:0 0 14px rgba(255,23,68,0.28);animation:bk 0.5s infinite;}
 
-.act-btn {
-font-family:‘Bebas Neue’, sans-serif;
-font-size:16px; letter-spacing:6px;
-padding:14px 44px;
-border:1px solid var(–gold-dim);
-background:transparent; color:var(–gold);
-cursor:pointer; position:relative; overflow:hidden;
-transition:all 0.25s;
-box-shadow:0 0 20px rgba(139,0,0,0.2), inset 0 0 20px rgba(139,0,0,0.05);
-}
-.act-btn::before {
-content:’’;
-position:absolute; inset:0;
-background:linear-gradient(90deg, transparent, rgba(201,168,76,0.06), transparent);
-transform:translateX(-100%); transition:transform 0.5s;
-}
-.act-btn:hover { border-color:var(–gold); box-shadow:0 0 30px rgba(201,168,76,0.2), inset 0 0 20px rgba(139,0,0,0.1); }
-.act-btn:hover::before { transform:translateX(100%); }
-.act-btn:active { transform:scale(0.97); }
+/* Stats */
+.sg{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.sb{background:var(–dim2);border:1px solid var(–bdr);padding:8px 6px;text-align:center;}
+.sl{font-family:‘Share Tech Mono’,monospace;font-size:8px;color:var(–dim);letter-spacing:1.5px;display:block;margin-bottom:2px;}
+.sv{font-family:‘Orbitron’,monospace;font-size:21px;font-weight:700;line-height:1;}
+.sv.g{color:var(–g)}.sv.r{color:var(–r)}.sv.b{color:var(–b)}.sv.y{color:var(–y)}
 
-/* ─── LOADING SCREEN ─── */
-.load {
-position:absolute; inset:0; z-index:30;
-display:none; flex-direction:column; align-items:center; justify-content:center; gap:20px;
-background:rgba(10,2,3,0.96);
-}
-.spin {
-width:52px; height:52px;
-border:2px solid var(–bdr2);
-border-top-color:var(–gold);
-border-right-color:var(–red);
-border-radius:50%;
-animation:spin 0.8s linear infinite;
-}
-@keyframes spin { to{ transform:rotate(360deg); } }
-.load-msg {
-font-family:‘Share Tech Mono’, monospace;
-font-size:11px; color:var(–gold); letter-spacing:2px; text-align:center;
-}
-.load-bar { width:220px; height:2px; background:var(–bdr); overflow:hidden; }
-.load-fill { height:100%; width:0%; background:linear-gradient(90deg, var(–crimson), var(–gold)); transition:width 0.4s; box-shadow:0 0 8px var(–gold); }
+/* Movement log */
+.me{font-family:‘Share Tech Mono’,monospace;font-size:9px;padding:6px 8px;
+border-left:2px solid var(–bdr);margin-bottom:4px;background:var(–dim2);line-height:1.8;color:var(–dim);}
+.me.motion{border-left-color:var(–b)}.me.logistics{border-left-color:var(–y)}.me.enemy{border-left-color:var(–r)}
+.me .mt{color:var(–g2);}
 
-/* ═══ SIDEBAR ═══ */
-.side {
-width:272px; flex-shrink:0;
-background:var(–panel);
-border-left:1px solid var(–bdr2);
-display:flex; flex-direction:column;
-overflow:hidden;
-position:relative;
-}
+/* Controls */
+.cg{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+.cb{background:var(–dim2);border:1px solid var(–bdr);font-family:‘Rajdhani’,sans-serif;
+font-size:11px;font-weight:700;letter-spacing:1px;padding:9px 5px;
+cursor:pointer;text-align:center;transition:all 0.15s;line-height:1.3;}
+.cb:active{transform:scale(0.96);}
+.cb.r{color:var(–r)}.cb.y{color:var(–y)}.cb.b{color:var(–b)}.cb.d{color:var(–dim)}
+.cb:hover{background:var(–bdr);filter:brightness(1.2);}
 
-/* Gold top accent on sidebar */
-.side::before {
-content:’’;
-position:absolute; top:0; left:0; right:0; height:2px;
-background:linear-gradient(90deg, var(–crimson), var(–gold-dim), var(–crimson));
-opacity:0.5;
-}
+.sr{display:flex;align-items:center;gap:8px;padding:5px 0;}
+.sr label{font-family:‘Share Tech Mono’,monospace;font-size:9px;color:var(–dim);letter-spacing:1px;width:75px;flex-shrink:0;}
+.sr input[type=range]{flex:1;accent-color:var(–g);height:3px;cursor:pointer;}
+.sr span{font-family:‘Share Tech Mono’,monospace;font-size:10px;color:var(–g);width:20px;text-align:right;}
 
-/* Panel */
-.pnl { border-bottom:1px solid var(–bdr); padding:12px 14px; }
+/* Event log */
+.ls{max-height:100px;overflow-y:auto;padding-right:2px;}
+.le{font-family:‘Share Tech Mono’,monospace;font-size:9px;padding:3px 0;
+border-bottom:1px solid var(–dim2);line-height:1.6;}
+.le.ok{color:var(–g2)}.le.info{color:var(–b)}.le.warn{color:var(–y)}.le.alert{color:var(–r)}.le.sys{color:var(–dim)}
 
-.pnl-h {
-font-family:‘Teko’, sans-serif;
-font-size:13px; font-weight:500;
-color:var(–gold-dim); letter-spacing:4px;
-margin-bottom:10px; padding-bottom:6px;
-border-bottom:1px solid var(–bdr);
-display:flex; align-items:center; gap:8px;
-text-transform:uppercase;
-}
-.pnl-h::before {
-content:’’;
-width:3px; height:12px;
-background:linear-gradient(180deg, var(–gold), var(–red));
-flex-shrink:0;
-}
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(–bdr2);}
 
-/* ─ Threat assess ─ */
-.ta {
-font-family:‘Bebas Neue’, sans-serif;
-font-size:18px; letter-spacing:4px;
-padding:13px; text-align:center;
-border:1px solid var(–bdr2);
-color:var(–txt-dim);
-background:var(–surface);
-transition:all 0.3s;
-}
-.ta.standby { color:var(–txt-dim); border-color:var(–bdr2); }
-.ta.motion  { color:var(–gold2); border-color:var(–gold); box-shadow:0 0 12px rgba(201,168,76,0.18); text-shadow:0 0 10px var(–gold); }
-.ta.logistics { color:var(–amber); border-color:var(–amber); box-shadow:0 0 12px rgba(255,140,0,0.2); }
-.ta.enemy { color:var(–red-alert); border-color:var(–red-alert); box-shadow:0 0 18px rgba(255,23,68,0.3); animation:ban-blink 0.5s infinite; }
+/* ── BOTTOM BAR ── */
+.bot{background:var(–p1);border-top:1px solid var(–bdr2);height:42px;flex-shrink:0;
+display:flex;align-items:center;justify-content:space-between;padding:0 14px;gap:10px;}
+.ss{display:flex;align-items:center;gap:12px;}
+.si{font-family:‘Share Tech Mono’,monospace;font-size:9px;color:var(–dim);
+letter-spacing:1px;display:flex;align-items:center;gap:5px;}
+.dot{width:6px;height:6px;border-radius:50%;background:var(–dim);flex-shrink:0;}
+.dot.on{background:var(–g);box-shadow:0 0 6px var(–g);animation:glow 2s infinite;}
+.dot.w{background:var(–y);box-shadow:0 0 6px var(–y);animation:glow 0.5s infinite;}
+.dot.a{background:var(–r);box-shadow:0 0 6px var(–r);animation:glow 0.4s infinite;}
+.alm{font-family:‘Orbitron’,monospace;font-size:9px;font-weight:700;letter-spacing:2px;
+padding:4px 10px;border:1px solid var(–bdr);color:var(–dim);transition:all 0.3s;}
+.alm.on{color:var(–r);border-color:var(–r);background:rgba(255,23,68,0.05);animation:bk 0.4s infinite;}
 
-/* ─ Stats grid ─ */
-.sg { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
-.sb {
-background:var(–surface); border:1px solid var(–bdr);
-padding:9px 6px; text-align:center;
-position:relative; overflow:hidden;
-}
-.sb::after {
-content:’’; position:absolute; bottom:0; left:0; right:0; height:1px;
-background:linear-gradient(90deg, transparent, var(–bdr2), transparent);
-}
-.sl {
-font-family:‘Share Tech Mono’, monospace;
-font-size:8px; color:var(–txt-muted);
-letter-spacing:1.5px; display:block; margin-bottom:3px;
-}
-.sv { font-family:‘Bebas Neue’, sans-serif; font-size:26px; line-height:1; }
-.sv.gold { color:var(–gold2); text-shadow:0 0 10px rgba(201,168,76,0.3); }
-.sv.red  { color:var(–red-alert); text-shadow:0 0 10px rgba(255,23,68,0.3); }
-.sv.amb  { color:var(–amber); }
-.sv.crim { color:var(–crimson); }
-
-/* ─ Movement log ─ */
-.me {
-font-family:‘Share Tech Mono’, monospace; font-size:9px;
-padding:7px 9px; border-left:2px solid var(–bdr2);
-margin-bottom:5px; background:var(–surface); line-height:1.9;
-color:var(–txt-dim);
-}
-.me.motion    { border-left-color:var(–gold); }
-.me.logistics { border-left-color:var(–amber); }
-.me.enemy     { border-left-color:var(–red-alert); }
-.me .mt { color:var(–gold2); }
-
-/* ─ Controls ─ */
-.cg { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
-.cb {
-background:var(–surface); border:1px solid var(–bdr);
-font-family:‘Teko’, sans-serif; font-size:14px; font-weight:500;
-letter-spacing:2px; padding:9px 5px;
-cursor:pointer; text-align:center; transition:all 0.15s;
-line-height:1.3; text-transform:uppercase;
-}
-.cb:active { transform:scale(0.96); }
-.cb:hover  { border-color:var(–gold-dim); background:var(–panel2); }
-.cb.red    { color:var(–red-alert); }
-.cb.amb    { color:var(–amber); }
-.cb.gold   { color:var(–gold); }
-.cb.dim    { color:var(–txt-dim); }
-
-.sr { display:flex; align-items:center; gap:8px; padding:5px 0; }
-.sr label {
-font-family:‘Share Tech Mono’, monospace; font-size:9px;
-color:var(–txt-dim); letter-spacing:1px; width:75px; flex-shrink:0;
-}
-.sr input[type=range] { flex:1; accent-color:var(–gold); height:3px; cursor:pointer; }
-.sr span { font-family:‘Share Tech Mono’, monospace; font-size:10px; color:var(–gold); width:20px; text-align:right; }
-
-/* ─ Event log ─ */
-.ls { max-height:105px; overflow-y:auto; padding-right:2px; }
-.le {
-font-family:‘Share Tech Mono’, monospace; font-size:9px;
-padding:3px 0; border-bottom:1px solid var(–bdr);
-line-height:1.6;
-}
-.le.ok    { color:var(–gold-dim); }
-.le.info  { color:var(–gold2); }
-.le.warn  { color:var(–amber); }
-.le.alert { color:var(–red-alert); }
-.le.sys   { color:var(–txt-muted); }
-
-::-webkit-scrollbar { width:3px; }
-::-webkit-scrollbar-track { background:transparent; }
-::-webkit-scrollbar-thumb { background:var(–bdr2); }
-
-/* ═══ BOTTOM BAR ═══ */
-.bot {
-height:44px; flex-shrink:0;
-background:var(–panel2);
-border-top:1px solid var(–bdr2);
-display:flex; align-items:center; justify-content:space-between;
-padding:0 16px; gap:10px;
-position:relative;
-}
-.bot::before {
-content:’’;
-position:absolute; top:0; left:0; right:0; height:1px;
-background:linear-gradient(90deg, transparent, var(–crimson), var(–gold-dim), var(–crimson), transparent);
-opacity:0.5;
-}
-
-.ss { display:flex; align-items:center; gap:14px; }
-.si {
-font-family:‘Share Tech Mono’, monospace; font-size:9px;
-color:var(–txt-muted); letter-spacing:1px;
-display:flex; align-items:center; gap:5px;
-}
-.dot { width:6px; height:6px; border-radius:50%; background:var(–txt-muted); flex-shrink:0; }
-.dot.on  { background:var(–gold); box-shadow:0 0 6px var(–gold); animation:gold-pulse 2s infinite; }
-.dot.wa  { background:var(–amber); box-shadow:0 0 6px var(–amber); animation:gold-pulse 0.5s infinite; }
-.dot.al  { background:var(–red-alert); box-shadow:0 0 6px var(–red-alert); animation:gold-pulse 0.4s infinite; }
-
-.alm-st {
-font-family:‘Teko’, sans-serif; font-size:13px; font-weight:500;
-letter-spacing:3px; padding:4px 12px;
-border:1px solid var(–bdr2); color:var(–txt-muted);
-background:var(–surface); transition:all 0.3s;
-text-transform:uppercase;
-}
-.alm-st.on {
-color:var(–red-alert); border-color:var(–red-alert);
-background:rgba(255,23,68,0.06); animation:ban-blink 0.4s infinite;
-}
-
-/* ─── Responsive ─── */
+/* Responsive */
 @media(max-width:680px){
-.side { width:100%; max-height:210px; border-left:none; border-top:1px solid var(–bdr2); }
-.body { flex-direction:column; }
-.feed { min-height:220px; }
-.hdr-center { display:none; }
-.side .pnl:nth-child(n+4) { display:none; }
-.brand-name { font-size:26px; letter-spacing:5px; }
+.side{width:100%;max-height:200px;border-left:none;border-top:1px solid var(–bdr);}
+.body{flex-direction:column;}
+.feed{min-height:220px;}
+.hdr-c{display:none;}
+.side .pnl:nth-child(n+4){display:none;}
 }
 </style>
 
@@ -521,54 +204,42 @@ background:rgba(255,23,68,0.06); animation:ban-blink 0.4s infinite;
 <body>
 <div class="app">
 
-<!-- ══════════ HEADER ══════════ -->
+<!-- HEADER -->
 
 <header class="hdr">
-  <div class="hdr-accent"></div>
-
-  <div class="hdr-left">
-    <!-- Tactical emblem -->
+  <div class="hdr-l">
     <div class="emblem">
-      <svg viewBox="0 0 44 44" fill="none">
-        <circle cx="22" cy="22" r="20" stroke="#C9A84C" stroke-width="1" opacity="0.7"/>
-        <circle cx="22" cy="22" r="14" stroke="#8B0000" stroke-width="0.8" opacity="0.5"/>
-        <circle cx="22" cy="22" r="3.5" fill="#C9A84C"/>
-        <!-- crosshair lines -->
-        <line x1="22" y1="2" x2="22" y2="10" stroke="#C9A84C" stroke-width="1.5"/>
-        <line x1="22" y1="34" x2="22" y2="42" stroke="#C9A84C" stroke-width="1.5"/>
-        <line x1="2" y1="22" x2="10" y2="22" stroke="#C9A84C" stroke-width="1.5"/>
-        <line x1="34" y1="22" x2="42" y2="22" stroke="#C9A84C" stroke-width="1.5"/>
-        <!-- diamond -->
-        <path d="M22 8 L28 22 L22 36 L16 22 Z" stroke="#8B0000" stroke-width="0.8" fill="rgba(139,0,0,0.15)"/>
-        <!-- tick marks -->
-        <line x1="22" y1="2" x2="22" y2="5" stroke="#C9A84C" stroke-width="2"/>
-        <line x1="22" y1="39" x2="22" y2="42" stroke="#C9A84C" stroke-width="2"/>
-        <line x1="2" y1="22" x2="5" y2="22" stroke="#C9A84C" stroke-width="2"/>
-        <line x1="39" y1="22" x2="42" y2="22" stroke="#C9A84C" stroke-width="2"/>
+      <svg viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="18" stroke="#00ff88" stroke-width="1.5" opacity="0.8"/>
+        <circle cx="20" cy="20" r="11" stroke="#00cc66" stroke-width="1" opacity="0.45"/>
+        <circle cx="20" cy="20" r="3.5" fill="#00ff88"/>
+        <line x1="20" y1="2" x2="20" y2="9" stroke="#00ff88" stroke-width="1.5"/>
+        <line x1="20" y1="31" x2="20" y2="38" stroke="#00ff88" stroke-width="1.5"/>
+        <line x1="2" y1="20" x2="9" y2="20" stroke="#00ff88" stroke-width="1.5"/>
+        <line x1="31" y1="20" x2="38" y2="20" stroke="#00ff88" stroke-width="1.5"/>
+        <path d="M13 13 L20 9 L27 13 L27 27 L13 27 Z" stroke="#00cc66" stroke-width="0.8" fill="none" opacity="0.5"/>
       </svg>
     </div>
-    <div>
-      <div class="brand-name">DRISHTI</div>
-      <div class="brand-sub">Intrusion Surveillance System &nbsp;·&nbsp; 14 SIKH LI</div>
+    <div class="brand">
+      <h1>DRISHTI</h1>
+      <p>DEEP LEARNING REAL-TIME INTRUSION SURVEILLANCE WITH HIGH-ALTITUDE THREAT INTELLIGENCE</p>
     </div>
   </div>
-
-  <div class="hdr-center">
-    <div class="hdr-badge" id="sysBadge">■ OFFLINE</div>
-    <div class="hdr-badge">HQ 8 MTN DIV · OP SAHAS</div>
+  <div class="hdr-c">
+    <div class="badge" id="sysBadge">■ OFFLINE</div>
+    <div class="badge">HQ 8 MTN DIV · 2026-27</div>
   </div>
-
-  <div class="hdr-right">
+  <div class="hdr-r">
     <div class="clock" id="clk">--:--:--</div>
-    <div class="unit-line">IC-90983Y &nbsp;·&nbsp; <span id="hDate">--</span> IST</div>
+    <div class="unit">IC-90983Y · 14 SIKH LI</div>
   </div>
 </header>
 
-<!-- ══════════ BODY ══════════ -->
+<!-- BODY -->
 
 <div class="body">
 
-  <!-- ─── FEED ─── -->
+  <!-- FEED -->
 
   <div class="feed" id="feedZone">
     <video id="vid" autoplay muted playsinline webkit-playsinline></video>
@@ -578,49 +249,28 @@ background:rgba(255,23,68,0.06); animation:ban-blink 0.4s infinite;
 <div class="brk tl"></div><div class="brk tr"></div>
 <div class="brk bl"></div><div class="brk br"></div>
 
-<div class="hud tl" id="hTL">
-  CAM-01 &nbsp;·&nbsp; ESP32-CAM SIM<br>
-  SECTOR: ALPHA &nbsp;·&nbsp; ALT: 18,000 FT<br>
-  FPS: <span id="hFPS">--</span> &nbsp;·&nbsp; <span id="hRES">--</span>
-</div>
-<div class="hud tr" id="hTR">
-  <span id="hDateHUD">--</span> IST<br>
-  ENGINE: COCO-SSD v2<br>
-  CONFIDENCE: <span id="hConf">--</span>%
-</div>
-<div class="hud bl" id="hBL">
-  PERSONS: <span id="hP">0</span><br>
-  VEHICLES: <span id="hV">0</span><br>
-  ANIMALS: <span id="hA">0</span>
-</div>
-<div class="hud br" id="hBR">
-  SPEED: <span id="hSpd">0</span> km/h<br>
-  WEAPONS: <span id="hW">0</span><br>
-  MOTION: <span id="hMot">CLEAR</span>
-</div>
+<div class="hud tl" id="hTL">CAM-01 · ESP32-CAM SIM<br>SECTOR: ALPHA · 18,000 FT<br>FPS: <span id="hFPS">--</span> · <span id="hRES">--</span></div>
+<div class="hud tr" id="hTR"><span id="hDate">--</span> IST<br>ENGINE: COCO-SSD v2<br>CONF: <span id="hConf">--</span>%</div>
+<div class="hud bl" id="hBL">PERSONS: <span id="hP">0</span><br>VEHICLES: <span id="hV">0</span><br>ANIMALS: <span id="hA">0</span></div>
+<div class="hud br" id="hBR">SPEED: <span id="hSpd">0</span> km/h<br>WEAPONS: <span id="hW">0</span><br>MOTION: <span id="hMot">CLEAR</span></div>
 
 <div class="thr-ban" id="thrBan"></div>
 
 <!-- IDLE -->
 <div class="idle" id="idleScr">
-  <div class="idle-glow">
-    <svg viewBox="0 0 44 44" fill="none" width="54" height="54">
-      <circle cx="22" cy="22" r="18" stroke="#C9A84C" stroke-width="1" opacity="0.4"/>
-      <circle cx="22" cy="22" r="10" stroke="#8B0000" stroke-width="0.8" opacity="0.35"/>
-      <circle cx="22" cy="22" r="3" fill="#C9A84C" opacity="0.5"/>
-      <line x1="22" y1="4" x2="22" y2="12" stroke="#C9A84C" stroke-width="1" opacity="0.5"/>
-      <line x1="22" y1="32" x2="22" y2="40" stroke="#C9A84C" stroke-width="1" opacity="0.5"/>
-      <line x1="4" y1="22" x2="12" y2="22" stroke="#C9A84C" stroke-width="1" opacity="0.5"/>
-      <line x1="32" y1="22" x2="40" y2="22" stroke="#C9A84C" stroke-width="1" opacity="0.5"/>
+  <div class="idle-ring">
+    <svg viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="16" stroke="#00ff88" stroke-width="1.5" opacity="0.35"/>
+      <circle cx="20" cy="20" r="8" stroke="#00cc66" stroke-width="1" opacity="0.25"/>
+      <circle cx="20" cy="20" r="3" fill="#00ff88" opacity="0.45"/>
+      <line x1="20" y1="4" x2="20" y2="12" stroke="#00ff88" stroke-width="1" opacity="0.45"/>
+      <line x1="20" y1="28" x2="20" y2="36" stroke="#00ff88" stroke-width="1" opacity="0.45"/>
+      <line x1="4" y1="20" x2="12" y2="20" stroke="#00ff88" stroke-width="1" opacity="0.45"/>
+      <line x1="28" y1="20" x2="36" y2="20" stroke="#00ff88" stroke-width="1" opacity="0.45"/>
     </svg>
   </div>
-  <div class="idle-title">
-    <strong>DRISHTI</strong>
-    INTRUSION SURVEILLANCE SYSTEM<br>
-    14 SIKH LI &nbsp;·&nbsp; HQ 8 MTN DIV<br>
-    CAMERA FEED NOT INITIALIZED
-  </div>
-  <button class="act-btn" id="actBtn">▶ &nbsp; ACTIVATE SURVEILLANCE</button>
+  <div class="idle-txt">DRISHTI SURVEILLANCE SYSTEM<br>ESP32-CAM FEED NOT INITIALIZED<br>AI DETECTION ENGINE: STANDBY<br><br>TAP ACTIVATE TO BEGIN SURVEILLANCE</div>
+  <button class="act-btn" id="actBtn">▶ ACTIVATE FEED</button>
 </div>
 
 <!-- LOADING -->
@@ -633,50 +283,48 @@ background:rgba(255,23,68,0.06); animation:ban-blink 0.4s infinite;
 
   </div>
 
-  <!-- ─── SIDEBAR ─── -->
+  <!-- SIDEBAR -->
 
   <aside class="side">
 
 ```
 <div class="pnl">
-  <div class="pnl-h">Threat Assessment</div>
+  <div class="pnl-h">THREAT ASSESSMENT</div>
   <div class="ta standby" id="taDisp">STANDBY</div>
 </div>
 
 <div class="pnl">
-  <div class="pnl-h">Detection Statistics</div>
+  <div class="pnl-h">DETECTION STATISTICS</div>
   <div class="sg">
-    <div class="sb"><span class="sl">PERSONS</span><div class="sv gold" id="sP">0</div></div>
-    <div class="sb"><span class="sl">WEAPONS</span><div class="sv red" id="sW">0</div></div>
-    <div class="sb"><span class="sl">SPEED km/h</span><div class="sv amb" id="sSp">0</div></div>
-    <div class="sb"><span class="sl">TOTAL ALERTS</span><div class="sv crim" id="sAl">0</div></div>
+    <div class="sb"><span class="sl">PERSONS</span><div class="sv g" id="sP">0</div></div>
+    <div class="sb"><span class="sl">WEAPONS</span><div class="sv r" id="sW">0</div></div>
+    <div class="sb"><span class="sl">SPEED km/h</span><div class="sv b" id="sSp">0</div></div>
+    <div class="sb"><span class="sl">TOTAL ALERTS</span><div class="sv y" id="sAl">0</div></div>
   </div>
 </div>
 
 <div class="pnl">
-  <div class="pnl-h">Movement Tracker</div>
-  <div id="mvLog">
-    <div class="me"><span style="color:var(--txt-muted)">AWAITING FIRST DETECTION...</span></div>
-  </div>
+  <div class="pnl-h">MOVEMENT TRACKER</div>
+  <div id="mvLog"><div class="me"><span style="color:var(--dim)">AWAITING FIRST DETECTION...</span></div></div>
 </div>
 
 <div class="pnl">
-  <div class="pnl-h">System Controls</div>
+  <div class="pnl-h">SYSTEM CONTROLS</div>
   <div class="sr">
     <label>SENSITIVITY</label>
     <input type="range" id="sensSl" min="1" max="10" value="5" oninput="setSens(this.value)">
     <span id="sensV">5</span>
   </div>
   <div class="cg" style="margin-top:6px;">
-    <button class="cb red" onclick="runSim('weapon')">⚠ WEAPON<br>SCENARIO</button>
-    <button class="cb amb" onclick="runSim('logistics')">⬛ LOGISTICS<br>SCENARIO</button>
-    <button class="cb gold" id="almBtn" onclick="toggleAlarm()">🔔 ALARM<br>ON</button>
-    <button class="cb dim" onclick="doReset()">↺ RESET</button>
+    <button class="cb r" onclick="runSim('weapon')">⚠ WEAPON<br>SCENARIO</button>
+    <button class="cb y" onclick="runSim('logistics')">🎒 LOGISTICS<br>SCENARIO</button>
+    <button class="cb b" id="almBtn" onclick="toggleAlarm()">🔔 ALARM<br>ON</button>
+    <button class="cb d" onclick="doReset()">↺ RESET<br>SYSTEM</button>
   </div>
 </div>
 
 <div class="pnl" style="flex:1;overflow:hidden;">
-  <div class="pnl-h">Event Log</div>
+  <div class="pnl-h">EVENT LOG</div>
   <div class="ls" id="evLog"></div>
 </div>
 ```
@@ -684,43 +332,42 @@ background:rgba(255,23,68,0.06); animation:ban-blink 0.4s infinite;
   </aside>
 </div>
 
-<!-- ══════════ BOTTOM BAR ══════════ -->
+<!-- BOTTOM BAR -->
 
 <div class="bot">
   <div class="ss">
-    <div class="si"><div class="dot" id="dCam"></div><span>CAMERA</span></div>
+    <div class="si"><div class="dot" id="dCam"></div><span>CAM</span></div>
     <div class="si"><div class="dot" id="dAI"></div><span>AI ENGINE</span></div>
     <div class="si"><div class="dot" id="dMot"></div><span>MOTION</span></div>
     <div class="si"><div class="dot" id="dThr"></div><span>THREAT</span></div>
   </div>
-  <div class="alm-st" id="almSt">● ALARM STANDBY</div>
+  <div class="alm" id="almSt">● ALARM STANDBY</div>
   <div class="ss">
-    <div class="si" id="bFPS" style="color:var(--gold-dim)">FPS: --</div>
-    <div class="si" id="bMdl" style="color:var(--gold-dim)">MODEL: OFFLINE</div>
+    <div class="si" id="bFPS">FPS: --</div>
+    <div class="si" id="bMdl">MODEL: OFFLINE</div>
+    <div class="si" id="bDate" style="color:var(--dim)"></div>
   </div>
 </div>
 
 </div><!-- /app -->
 
-<!-- ════════════════════════════════════
-     DRISHTI CORE DETECTION ENGINE
-     ════════════════════════════════════ -->
-
 <script>
 'use strict';
 
-// ── CLASSES ───────────────────────────────────────
+// ── OBJECT CLASSES ────────────────────────────────
 const PERSONS  = new Set(['person']);
 const VEHICLES = new Set(['bicycle','car','motorbike','bus','truck','boat','train','airplane']);
 const ANIMALS  = new Set(['bird','cat','dog','horse','sheep','cow','elephant','bear','zebra','giraffe']);
-// Only genuinely threatening objects — bottle/scissors/fork REMOVED to prevent false alarms
+// COCO-SSD has no gun/rifle class. Only flag objects that are unambiguously weapon-like
+// AND unlikely to appear in normal civilian settings near a post.
+// Bottle, fork, sports ball, scissors REMOVED — too many false positives.
+// On Raspberry Pi, this will be replaced with a custom YOLOv8 weapons model.
 const WEAPONS  = new Set(['knife','baseball bat']);
 const BAGS     = new Set(['backpack','handbag','suitcase']);
 
 // ── STATE ─────────────────────────────────────────
 const $ = id => document.getElementById(id);
 const vid = $('vid'), ov = $('ov'), ctx = ov.getContext('2d');
-
 let model=null, running=false, simMode=null;
 let alarmOn=true, alarmFiring=false;
 let alertTotal=0, lastThreat='standby';
@@ -728,16 +375,15 @@ let motionStart=null, lastCen=null, lastPreds=[];
 let audioCtx=null, beepH=null;
 let frameIdx=0, frameCount=0, fpsTimer=Date.now(), fps=0;
 let simH=null, prevFrame=null, sensitivity=5;
-let weaponFrames=0;
-const WEAPON_CONFIRM=4;
+let weaponFrameCount=0; // weapon must appear in multiple frames before triggering
+const WEAPON_CONFIRM_FRAMES=4; // needs 4 consecutive frames with weapon to confirm
 
 // ── CLOCK ─────────────────────────────────────────
 function tick(){
   const n=new Date();
   $('clk').textContent=n.toTimeString().slice(0,8);
   const ds=n.toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric'});
-  $('hDate').textContent=ds;
-  $('hDateHUD').textContent=ds;
+  $('hDate').textContent=ds; $('bDate').textContent=ds+' IST';
 }
 setInterval(tick,1000); tick();
 
@@ -747,7 +393,7 @@ function sysLog(msg,type='sys'){
   const d=document.createElement('div');
   d.className=`le ${type}`; d.textContent=`[${t}] ${msg}`;
   const l=$('evLog'); l.insertBefore(d,l.firstChild);
-  while(l.children.length>40)l.removeChild(l.lastChild);
+  while(l.children.length>40) l.removeChild(l.lastChild);
 }
 
 // ── ACTIVATE ──────────────────────────────────────
@@ -757,6 +403,7 @@ async function activate(){
   $('idleScr').style.display='none';
   const ls=$('loadScr'); ls.style.display='flex';
   setLoad('REQUESTING CAMERA ACCESS...',8);
+
   try{
     let stream;
     try{
@@ -766,6 +413,7 @@ async function activate(){
     }catch{
       stream=await navigator.mediaDevices.getUserMedia({video:true,audio:false});
     }
+
     vid.srcObject=stream; vid.style.display='block';
     await new Promise(r=>{vid.onloadedmetadata=r;});
     await vid.play();
@@ -777,35 +425,36 @@ async function activate(){
     }
     syncCv(); new ResizeObserver(syncCv).observe(vid);
     setLoad('CAMERA ACTIVE — LOADING AI MODEL...',30);
+
+    // Show HUDs
     document.querySelectorAll('.brk,.hud').forEach(e=>e.style.display='block');
 
     try{
       await window.tf.ready();
-      setLoad('COMPILING NEURAL NETWORK...',62);
+      setLoad('COMPILING NEURAL NETWORK...',60);
       model=await cocoSsd.load({base:'mobilenet_v2'});
-      setLoad('AI MODEL READY...',90);
-      $('dAI').className='dot on';
-      $('bMdl').textContent='MODEL: COCO-SSD v2';
+      setLoad('AI MODEL READY — CALIBRATING...',88);
+      $('dAI').className='dot on'; $('bMdl').textContent='MODEL: COCO-SSD v2';
       sysLog('AI engine loaded — COCO-SSD MobileNetV2','ok');
     }catch(e){
-      sysLog('AI model failed — motion detection mode','warn');
+      sysLog('AI model failed — motion-only mode','warn');
       $('bMdl').textContent='MODEL: MOTION-ONLY';
     }
 
-    setLoad('SURVEILLANCE ACTIVE',100);
-    await new Promise(r=>setTimeout(r,380));
+    setLoad('SYSTEM ACTIVE',100);
+    await new Promise(r=>setTimeout(r,350));
     ls.style.display='none';
     $('dCam').className='dot on';
-    $('sysBadge').textContent='■ SYSTEM ACTIVE';
-    $('sysBadge').classList.add('live');
+    $('sysBadge').textContent='■ SYSTEM ACTIVE'; $('sysBadge').classList.add('live');
     running=true;
     sysLog('DRISHTI surveillance system activated','ok');
     sysLog('Post: Ganasok · Sector Alpha · Alt 18,000 ft','sys');
     requestAnimationFrame(loop);
 
   }catch(err){
-    setLoad('⚠ CAMERA DENIED — Enable in browser settings',100);
-    sysLog('Camera denied — check browser permissions','alert');
+    console.error(err);
+    setLoad('⚠ CAMERA DENIED\nOpen browser settings → Allow Camera',100);
+    sysLog('Camera denied — enable in browser settings','alert');
     setTimeout(()=>{ls.style.display='none';$('idleScr').style.display='flex';},5000);
   }
 }
@@ -815,36 +464,47 @@ function setLoad(m,p){ $('loadMsg').textContent=m; $('loadFill').style.width=p+'
 // ── MAIN LOOP ─────────────────────────────────────
 async function loop(){
   if(!running) return;
+
+  // FPS counter
   frameCount++;
   const now=Date.now();
   if(now-fpsTimer>=1000){
     fps=frameCount; frameCount=0; fpsTimer=now;
     $('hFPS').textContent=fps; $('bFPS').textContent='FPS: '+fps;
   }
+
+  // Draw live video every frame — this is what makes it feel live
   if(vid.readyState>=2){
     ov.width=vid.videoWidth||ov.width;
     ov.height=vid.videoHeight||ov.height;
     ctx.drawImage(vid,0,0,ov.width,ov.height);
   }
+
+  // Motion — every frame
   const motion=getMotion();
+
+  // AI — every 5th frame (balances accuracy vs framerate)
   frameIdx++;
-  if(model&&simMode===null&&frameIdx%5===0&&vid.readyState>=2){
+  if(model && simMode===null && frameIdx%5===0 && vid.readyState>=2){
     try{ lastPreds=await model.detect(vid); }catch{ lastPreds=[]; }
   }
-  const preds=simMode?simPreds(simMode):lastPreds;
-  const counts=drawDetections(preds,motion);
-  classify(counts,motion);
+
+  const preds = simMode ? simPreds(simMode) : lastPreds;
+  const counts = drawDetections(preds, motion);
+  classify(counts, motion);
+
   requestAnimationFrame(loop);
 }
 
-// ── MOTION ────────────────────────────────────────
+// ── MOTION DETECTION ──────────────────────────────
 function getMotion(){
   if(vid.readyState<2||ov.width<2) return{detected:false,cx:0,cy:0,strength:0};
   const curr=ctx.getImageData(0,0,ov.width,ov.height);
   if(!prevFrame){prevFrame=curr;return{detected:false,cx:0,cy:0,strength:0};}
   const d1=prevFrame.data,d2=curr.data;
   const thresh=(11-sensitivity)*11;
-  let diff=0,sx=0,sy=0; const W=ov.width;
+  let diff=0,sx=0,sy=0;
+  const W=ov.width;
   for(let i=0;i<d1.length;i+=28){
     const delta=Math.abs(d1[i]-d2[i])+Math.abs(d1[i+1]-d2[i+1])+Math.abs(d1[i+2]-d2[i+2]);
     if(delta>thresh){diff++;const idx=i/4;sx+=idx%W;sy+=Math.floor(idx/W);}
@@ -854,31 +514,30 @@ function getMotion(){
   return{detected:det,cx:det?sx/diff:0,cy:det?sy/diff:0,strength:diff};
 }
 
-// ── DRAW ──────────────────────────────────────────
+// ── DRAW DETECTIONS ───────────────────────────────
 function drawDetections(preds,motion){
   let persons=0,weapons=0,bags=0,vehicles=0,animals=0,maxConf=0,speed=0;
 
   preds.forEach(p=>{
     if(p.score<0.62) return;
-    const[x,y,w,h]=p.bbox; const c=p.class;
+    const[x,y,w,h]=p.bbox;
+    const c=p.class;
     const isP=PERSONS.has(c),isW=WEAPONS.has(c),isB=BAGS.has(c);
     const isV=VEHICLES.has(c),isA=ANIMALS.has(c);
-    if(isP)persons++;if(isW)weapons++;if(isB)bags++;
-    if(isV)vehicles++;if(isA)animals++;
+    if(isP)persons++;if(isW)weapons++;if(isB)bags++;if(isV)vehicles++;if(isA)animals++;
     if(p.score>maxConf)maxConf=p.score;
 
-    // Colour scheme matches palette
-    const col=isW?'#FF1744':isP?'#C9A84C':isB?'#FF8C00':isV?'#CC8800':isA?'#8B4500':'#6B0000';
-    const colA=col+'22';
+    const col=isW?'#ff1744':isP?'#00b0ff':isB?'#ffd600':isV?'#69f0ae':isA?'#ff9100':'#e040fb';
 
-    ctx.fillStyle=colA; ctx.fillRect(x,y,w,h);
+    // Filled box
+    ctx.fillStyle=col+'16'; ctx.fillRect(x,y,w,h);
     ctx.strokeStyle=col; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
 
-    // Dashed tracking circle for persons
+    // Circle for persons / weapons
     if(isP||isW){
       ctx.beginPath();
       ctx.arc(x+w/2,y+h/2,Math.max(w,h)*0.63,0,Math.PI*2);
-      ctx.strokeStyle=col+'99'; ctx.lineWidth=1.5;
+      ctx.strokeStyle=col+'aa'; ctx.lineWidth=1.5;
       ctx.setLineDash([7,4]); ctx.stroke(); ctx.setLineDash([]);
     }
 
@@ -888,32 +547,31 @@ function drawDetections(preds,motion){
       [[x,y+tl,x,y,x+tl,y],[x+w-tl,y,x+w,y,x+w,y+tl],
        [x,y+h-tl,x,y+h,x+tl,y+h],[x+w-tl,y+h,x+w,y+h,x+w,y+h-tl]].forEach(([ax,ay,bx,by,cx2,cy2])=>{
         ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.lineTo(cx2,cy2);
-        ctx.strokeStyle=col+'bb';ctx.lineWidth=2;ctx.stroke();
+        ctx.strokeStyle=col+'cc';ctx.lineWidth=2;ctx.stroke();
       });
     }
 
     // Label
     const fs=Math.max(11,ov.width*0.018);
-    ctx.font=`700 ${fs}px 'Share Tech Mono',monospace`;
+    ctx.font=`bold ${fs}px monospace`;
     const lbl=`${c.toUpperCase()} ${Math.round(p.score*100)}%`;
     const tw=ctx.measureText(lbl).width+10;
-    ctx.fillStyle=col; ctx.fillRect(x-1,y-fs-6,tw,fs+6);
+    ctx.fillStyle=col; ctx.fillRect(x-1,y-fs-5,tw,fs+5);
     ctx.fillStyle='#000'; ctx.fillText(lbl,x+4,y-3);
   });
 
-  // Motion circle when nothing detected
+  // Motion circle when no AI detection
   if(motion.detected&&persons===0&&vehicles===0&&animals===0){
     const r=Math.min(52+motion.strength*0.38,95);
-    ctx.beginPath(); ctx.arc(motion.cx,motion.cy,r,0,Math.PI*2);
-    ctx.strokeStyle='rgba(201,168,76,0.55)'; ctx.setLineDash([10,5]);
+    ctx.beginPath();ctx.arc(motion.cx,motion.cy,r,0,Math.PI*2);
+    ctx.strokeStyle='rgba(0,176,255,0.65)'; ctx.setLineDash([10,5]);
     ctx.lineWidth=2; ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle='rgba(201,168,76,0.04)'; ctx.fill();
-    ctx.fillStyle='#C9A84C';
-    ctx.font=`700 ${Math.max(11,ov.width*0.018)}px 'Share Tech Mono',monospace`;
-    ctx.fillText('MOTION DETECTED',motion.cx-56,motion.cy-r-8);
+    ctx.fillStyle='rgba(0,176,255,0.05)'; ctx.fill();
+    ctx.fillStyle='#00b0ff'; ctx.font=`bold ${Math.max(11,ov.width*0.018)}px monospace`;
+    ctx.fillText('MOTION DETECTED',motion.cx-55,motion.cy-r-7);
   }
 
-  // Speed
+  // Speed from centroid
   if(preds.length>0&&preds[0].score>0.62){
     const[x,y,w,h]=preds[0].bbox;
     const cx=x+w/2,cy=y+h/2;
@@ -923,48 +581,58 @@ function drawDetections(preds,motion){
 
   $('hP').textContent=persons; $('hV').textContent=vehicles;
   $('hA').textContent=animals; $('hW').textContent=weapons;
-  $('hSpd').textContent=speed;
-  $('hConf').textContent=maxConf>0?Math.round(maxConf*100):'--';
+  $('hSpd').textContent=speed; $('hConf').textContent=maxConf>0?Math.round(maxConf*100):'--';
   $('hMot').textContent=(motion.detected||persons>0)?'ACTIVE':'CLEAR';
   $('dMot').className=(motion.detected||persons>0)?'dot on':'dot';
   return{persons,weapons,bags,vehicles,animals,speed};
 }
 
-// ── CLASSIFY ──────────────────────────────────────
+// ── THREAT CLASSIFICATION ─────────────────────────
 const THR_LABELS={standby:'STANDBY',motion:'MOTION ACTIVE',logistics:'LOGISTIC MVMT',enemy:'ENEMY ATTACK'};
-const BAN_TXT={enemy:'⚠  LIKELY ENEMY ATTACK',logistics:'⚡  LIKELY LOGISTIC MOVEMENT',motion:'◉  MOTION DETECTED'};
+const BAN_TXT={enemy:'⚠  LIKELY ENEMY ATTACK',logistics:'⚡  LIKELY LOGISTIC MOVEMENT',motion:'◉  PERSON / MOTION DETECTED'};
 
 function classify({persons,weapons,bags,vehicles,animals,speed},motion){
   let thr='standby',banCls='';
+
   if(persons>0||simMode){
     if(!motionStart)motionStart=new Date();
-    if(weapons>0)weaponFrames++; else weaponFrames=0;
-    const wConf=weaponFrames>=WEAPON_CONFIRM;
-    if(wConf||simMode==='weapon'){thr='enemy';banCls='enemy';}
+    // Weapon needs multiple consecutive frames to confirm — reduces false positives
+    if(weapons>0) weaponFrameCount++; else weaponFrameCount=0;
+    const weaponConfirmed = weaponFrameCount >= WEAPON_CONFIRM_FRAMES;
+    if((weaponConfirmed)||simMode==='weapon'){thr='enemy';banCls='enemy';}
     else if(bags>0||simMode==='logistics'){thr='logistics';banCls='logistics';}
     else{thr='motion';banCls='motion';}
   } else if(motion.detected){
     if(!motionStart)motionStart=new Date();
     thr='motion';banCls='motion';
   } else{
-    motionStart=null;lastCen=null;weaponFrames=0;stopAlarm();
+    motionStart=null;lastCen=null;stopAlarm();
   }
 
+  // Banner
   const bn=$('thrBan');
   if(banCls){bn.textContent=BAN_TXT[thr];bn.className=`thr-ban show ${banCls}`;}
   else bn.className='thr-ban';
 
+  // Assess panel
   const ta=$('taDisp'); ta.textContent=THR_LABELS[thr]; ta.className=`ta ${thr}`;
-  $('dThr').className=thr==='enemy'?'dot al':thr==='logistics'?'dot wa':thr==='motion'?'dot on':'dot';
+
+  // Status dots
+  $('dThr').className=thr==='enemy'?'dot a':thr==='logistics'?'dot w':thr==='motion'?'dot on':'dot';
+
+  // Stats
   $('sP').textContent=persons; $('sW').textContent=weapons; $('sSp').textContent=speed;
 
+  // On threat change
   if(thr!==lastThreat){
     lastThreat=thr;
     if(thr!=='standby'){
       alertTotal++; $('sAl').textContent=alertTotal;
-      const msgs={enemy:`ALERT: ${persons} person(s) with weapon — ENEMY ATTACK`,
-                  logistics:`WARN: ${persons} person(s) with bags — LOGISTIC MVMT`,
-                  motion:'INFO: Motion / person detected in surveillance zone'};
+      const msgs={
+        enemy:`ALERT: ${persons} person(s) w/ weapon — ENEMY ATTACK`,
+        logistics:`WARN: ${persons} person(s) w/ bags — LOGISTIC MVMT`,
+        motion:'INFO: Motion / person detected in zone'
+      };
       sysLog(msgs[thr]||'',thr==='enemy'?'alert':thr==='logistics'?'warn':'info');
       addMvmt(thr,persons,weapons,speed);
       if(thr==='enemy')triggerAlarm(); else stopAlarm();
@@ -978,7 +646,7 @@ function addMvmt(type,persons,weapons,speed){
   const dur=motionStart?Math.round((now-motionStart)/1000):0;
   const ml=$('mvLog'),d=document.createElement('div');
   d.className=`me ${type}`;
-  d.innerHTML=`<span class="mt">${ts}</span>  ${type.toUpperCase()}<br>PERSONS: ${persons} &nbsp;|&nbsp; WPN: ${weapons} &nbsp;|&nbsp; SPD: ${speed} km/h<br>DURATION: ${dur}s`;
+  d.innerHTML=`<span class="mt">${ts}</span>  STATUS: ${type.toUpperCase()}<br>PERSONS: ${persons} | WPN: ${weapons} | SPD: ${speed} km/h<br>DURATION: ${dur}s`;
   ml.insertBefore(d,ml.firstChild);
   while(ml.children.length>5)ml.removeChild(ml.lastChild);
 }
@@ -986,8 +654,7 @@ function addMvmt(type,persons,weapons,speed){
 // ── ALARM ─────────────────────────────────────────
 function triggerAlarm(){
   if(!alarmOn||alarmFiring)return;
-  alarmFiring=true;
-  $('almSt').textContent='▲ ALARM TRIGGERED'; $('almSt').className='alm-st on';
+  alarmFiring=true; $('almSt').textContent='▲ ALARM TRIGGERED'; $('almSt').className='alm on';
   chirp();
 }
 function chirp(){
@@ -999,8 +666,7 @@ function chirp(){
       o.connect(g);g.connect(audioCtx.destination);
       o.type='square';o.frequency.value=f;
       const t=audioCtx.currentTime+i*0.14;
-      g.gain.setValueAtTime(0.16,t);
-      g.gain.exponentialRampToValueAtTime(0.001,t+0.12);
+      g.gain.setValueAtTime(0.16,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.12);
       o.start(t);o.stop(t+0.13);
     });
   }catch{}
@@ -1008,16 +674,14 @@ function chirp(){
 }
 function stopAlarm(){
   if(!alarmFiring)return; alarmFiring=false; clearTimeout(beepH);
-  $('almSt').textContent='● ALARM STANDBY'; $('almSt').className='alm-st';
+  $('almSt').textContent='● ALARM STANDBY'; $('almSt').className='alm';
 }
 function toggleAlarm(){
-  alarmOn=!alarmOn;
-  $('almBtn').textContent=alarmOn?'🔔 ALARM\nON':'🔕 ALARM\nOFF';
-  if(!alarmOn)stopAlarm();
-  sysLog(`Alarm ${alarmOn?'enabled':'disabled'}`,'sys');
+  alarmOn=!alarmOn; $('almBtn').textContent=alarmOn?'🔔 ALARM\nON':'🔕 ALARM\nOFF';
+  if(!alarmOn)stopAlarm(); sysLog(`Alarm ${alarmOn?'enabled':'disabled'}`,'sys');
 }
 
-// ── SIMULATION ────────────────────────────────────
+// ── SIMULATIONS ───────────────────────────────────
 function simPreds(type){
   const cw=ov.width,ch=ov.height,t=Date.now()/1200;
   const ox=Math.sin(t)*cw*0.04,oy=Math.cos(t*0.7)*ch*0.02;
@@ -1045,15 +709,13 @@ function runSim(type){
 function setSens(v){ sensitivity=parseInt(v); $('sensV').textContent=v; }
 
 function doReset(){
-  simMode=null;alertTotal=0;lastThreat='standby';motionStart=null;
-  lastCen=null;lastPreds=[];weaponFrames=0;
+  simMode=null;alertTotal=0;lastThreat='standby';motionStart=null;lastCen=null;lastPreds=[];weaponFrameCount=0;
   clearTimeout(simH);stopAlarm();
   ['sP','sW','sSp'].forEach(id=>$(id).textContent='0'); $('sAl').textContent='0';
   $('taDisp').textContent='STANDBY'; $('taDisp').className='ta standby';
   $('thrBan').className='thr-ban';
-  $('mvLog').innerHTML='<div class="me"><span style="color:var(--txt-muted)">AWAITING DETECTION...</span></div>';
-  $('evLog').innerHTML='';
-  ['dMot','dThr'].forEach(id=>$(id).className='dot');
+  $('mvLog').innerHTML='<div class="me"><span style="color:var(--dim)">AWAITING DETECTION...</span></div>';
+  $('evLog').innerHTML=''; ['dMot','dThr'].forEach(id=>$(id).className='dot');
   sysLog('System reset — all counters cleared','ok');
 }
 </script>
