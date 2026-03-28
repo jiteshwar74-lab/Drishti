@@ -222,7 +222,7 @@ padding:4px 10px;border:1px solid var(–bdr);color:var(–dim);transition:all 0
     </div>
     <div class="brand">
       <h1>DRISHTI</h1>
-      <p>14 SIKH LI &nbsp;·&nbsp; HQ 8 MTN DIV &nbsp;·&nbsp; OP SAHAS</p>
+      <p>14 SIKH LI &nbsp;·&nbsp; HQ 8 MTN DIV</p>
     </div>
   </div>
   <div class="hdr-c">
@@ -384,8 +384,13 @@ let motionStart=null, lastCen=null, lastPreds=[];
 let audioCtx=null, beepH=null;
 let frameIdx=0, frameCount=0, fpsTimer=Date.now(), fps=0;
 let simH=null, prevFrame=null, sensitivity=5;
-let weaponFrameCount=0; // weapon must appear in multiple frames before triggering
-const WEAPON_CONFIRM_FRAMES=4; // needs 4 consecutive frames with weapon to confirm
+let weaponFrameCount=0;
+const WEAPON_CONFIRM_FRAMES=4;
+// Motion hold: once motion/threat detected, hold state for min 3 seconds
+// This prevents the flickering on/off every frame
+let threatHoldTimer=null;
+let heldThreat='standby'; // the currently "held" threat shown to user
+const THREAT_HOLD_MS=3000; // hold any detected state for 3 seconds minimum
 
 // ── CLOCK ─────────────────────────────────────────
 function tick(){
@@ -616,71 +621,172 @@ function drawDetections(preds,motion){
 }
 
 // ── THREAT CLASSIFICATION ─────────────────────────
-// NOTE: COCO-SSD cannot detect rifles, guns or AK-47s — not in its 80 classes.
-// Workaround: if a person bbox is unusually WIDE relative to height,
-// it suggests arms extended (holding rifle). This is a heuristic proxy.
-// On Raspberry Pi, YOLOv8 custom model will detect actual weapons.
+// ═══════════════════════════════════════════════════════
+// DRISHTI — MULTI-SIGNAL ARMED PERSON DETECTION
+// Based on human body proportion science:
+//   Normal person w/h ratio = 0.26–0.45
+//   Arms out holding rifle  = 0.72–1.1
+//   AK-47 length = 87cm ≈ 35-40% of body height
+//   Upper body wider than lower = rifle held up
+// ═══════════════════════════════════════════════════════
+
+function countActivePixels(imageData){
+  const d=imageData.data; let count=0;
+  for(let i=0;i<d.length;i+=16){
+    const b=(d[i]+d[i+1]+d[i+2])/3;
+    if(b>30&&b<220) count++;
+  }
+  return count;
+}
+
+function scanForBarrel(x,y,w,h){
+  // Scan 8 horizontal rows in upper 65% of person bbox
+  // Looking for continuous dark run > 45% of bbox width = rifle barrel
+  const scanH=h*0.65;
+  const minRun=w*0.45;
+  for(let row=0;row<8;row++){
+    const sy=Math.max(0,Math.round(y+(scanH/8)*row));
+    const sw=Math.min(w,ov.width-Math.max(0,Math.round(x)));
+    if(sw<4) continue;
+    const rowData=ctx.getImageData(Math.max(0,Math.round(x)),sy,sw,2);
+    const d=rowData.data;
+    let darkRun=0,maxRun=0;
+    for(let i=0;i<d.length;i+=4){
+      const b=(d[i]+d[i+1]+d[i+2])/3;
+      if(b<90){darkRun++;if(darkRun>maxRun)maxRun=darkRun;}
+      else darkRun=0;
+    }
+    // maxRun is in pixel-samples; each sample = 1 pixel width
+    if(maxRun>(minRun/4)) return true;
+  }
+  return false;
+}
+
+function detectArmedPerson(preds){
+  for(const p of preds){
+    if(p.class!=='person'||p.score<0.62) continue;
+    const[x,y,w,h]=p.bbox;
+    let score=0;
+
+    // ── Signal 1: Aspect ratio (weight 3) ──
+    // Combat-ready rifle hold: ratio > 0.72
+    // Rifle slung on shoulder: ratio 0.52–0.72
+    const ratio=w/h;
+    if(ratio>0.72){ score+=3; }
+    else if(ratio>0.52){ score+=1; }
+
+    // ── Signal 2: Upper body vs lower body width (weight 2) ──
+    // Rifle held up = upper half has more content than lower half
+    try{
+      const cx2=Math.max(0,Math.round(x)), cy2=Math.max(0,Math.round(y));
+      const cw2=Math.min(Math.round(w),ov.width-cx2);
+      const ch2=Math.min(Math.round(h*0.5),ov.height-cy2);
+      const ch3=Math.min(Math.round(h*0.5),ov.height-cy2-Math.round(h*0.5));
+      if(cw2>2&&ch2>2&&ch3>2){
+        const top=countActivePixels(ctx.getImageData(cx2,cy2,cw2,ch2));
+        const bot=countActivePixels(ctx.getImageData(cx2,cy2+Math.round(h*0.5),cw2,ch3));
+        if(bot>0&&top/bot>1.35) score+=2;
+      }
+    }catch(e){}
+
+    // ── Signal 3: Barrel scan (weight 3) ──
+    // Dark elongated horizontal region = AK-47 barrel
+    try{
+      if(scanForBarrel(x,y,w,h)) score+=3;
+    }catch(e){}
+
+    // ── Signal 4: Left-right asymmetry (weight 1) ──
+    // Rifle slung on one shoulder = asymmetric upper body
+    try{
+      const ax=Math.max(0,Math.round(x)), ay=Math.max(0,Math.round(y));
+      const aw=Math.min(Math.round(w*0.5),ov.width-ax);
+      const aw2=Math.min(Math.round(w*0.5),ov.width-ax-Math.round(w*0.5));
+      const ah=Math.min(Math.round(h*0.6),ov.height-ay);
+      if(aw>2&&aw2>2&&ah>2){
+        const L=countActivePixels(ctx.getImageData(ax,ay,aw,ah));
+        const R=countActivePixels(ctx.getImageData(ax+Math.round(w*0.5),ay,aw2,ah));
+        const total=L+R;
+        if(total>0&&Math.abs(L-R)/total>0.20) score+=1;
+      }
+    }catch(e){}
+
+    // Score >= 4: high confidence armed
+    if(score>=4) return true;
+  }
+  return false;
+}
+
+// ── THREAT CLASSIFICATION ─────────────────────────
 const THR_LABELS={standby:'STANDBY',motion:'MOTION ACTIVE',logistics:'LOGISTIC MVMT',enemy:'ENEMY ATTACK'};
 const BAN_TXT={enemy:'⚠  LIKELY ENEMY ATTACK',logistics:'⚡  LIKELY LOGISTIC MOVEMENT',motion:'◉  PERSON / MOTION DETECTED'};
 
-function hasArmedPosture(preds){
-  // Check if any person bbox has width:height ratio > 0.75 (arms out = holding something)
-  // Normal standing person has ratio ~0.35-0.55; arms extended = 0.7+
-  return preds.some(p=>{
-    if(p.class!=='person'||p.score<0.62) return false;
-    const[x,y,w,h]=p.bbox;
-    const ratio=w/h;
-    return ratio>0.72; // wide = arms extended
-  });
+function setDisplayThreat(thr){
+  // Priority: enemy > logistics > motion > standby
+  // Only UPGRADE held threat, never downgrade until hold timer expires
+  const priority={standby:0,motion:1,logistics:2,enemy:3};
+  if(priority[thr]>=priority[heldThreat]){
+    heldThreat=thr;
+    clearTimeout(threatHoldTimer);
+    if(thr!=='standby'){
+      // Hold this threat state for THREAT_HOLD_MS before allowing downgrade
+      threatHoldTimer=setTimeout(()=>{
+        heldThreat='standby';
+      }, THREAT_HOLD_MS);
+    }
+  }
+  // Always render heldThreat (not raw thr) — this stops flickering
+  const display=heldThreat;
+  const bn=$('thrBan');
+  if(display!=='standby'){
+    bn.textContent=BAN_TXT[display];
+    bn.className=`thr-ban show ${display}`;
+  } else {
+    bn.className='thr-ban';
+  }
+  const ta=$('taDisp');
+  ta.textContent=THR_LABELS[display];
+  ta.className=`ta ${display}`;
+  $('dThr').className=display==='enemy'?'dot a':display==='logistics'?'dot w':display==='motion'?'dot on':'dot';
 }
 
 function classify({persons,weapons,bags,vehicles,animals,speed},motion,preds){
-  let thr='standby',banCls='';
+  let thr='standby';
 
   if(persons>0||simMode){
     if(!motionStart)motionStart=new Date();
     if(weapons>0) weaponFrameCount++; else weaponFrameCount=0;
     const weaponConfirmed=weaponFrameCount>=WEAPON_CONFIRM_FRAMES;
-    // Also check armed posture heuristic
-    const armedPosture=hasArmedPosture(preds);
-    if(weaponConfirmed||armedPosture||simMode==='weapon'){thr='enemy';banCls='enemy';}
-    else if(bags>0||simMode==='logistics'){thr='logistics';banCls='logistics';}
-    else{thr='motion';banCls='motion';}
+    const armed=detectArmedPerson(preds);
+    if(weaponConfirmed||armed||simMode==='weapon') thr='enemy';
+    else if(bags>0||simMode==='logistics') thr='logistics';
+    else thr='motion';
   } else if(motion.detected){
     if(!motionStart)motionStart=new Date();
-    thr='motion';banCls='motion';
+    thr='motion';
   } else{
-    motionStart=null;lastCen=null;weaponFrameCount=0;stopAlarm();
+    motionStart=null; lastCen=null; weaponFrameCount=0;
+    if(heldThreat==='standby') stopAlarm();
   }
 
-  // Banner
-  const bn=$('thrBan');
-  if(banCls){bn.textContent=BAN_TXT[thr];bn.className=`thr-ban show ${banCls}`;}
-  else bn.className='thr-ban';
-
-  // Assess panel
-  const ta=$('taDisp'); ta.textContent=THR_LABELS[thr]; ta.className=`ta ${thr}`;
-
-  // Status dots
-  $('dThr').className=thr==='enemy'?'dot a':thr==='logistics'?'dot w':thr==='motion'?'dot on':'dot';
+  setDisplayThreat(thr);
 
   // Stats
   $('sP').textContent=persons; $('sW').textContent=weapons; $('sSp').textContent=speed;
 
-  // On threat change
-  if(thr!==lastThreat){
+  // Log + alarm on new threat
+  if(thr!=='standby'&&thr!==lastThreat){
     lastThreat=thr;
-    if(thr!=='standby'){
-      alertTotal++; $('sAl').textContent=alertTotal;
-      const msgs={
-        enemy:`ALERT: ${persons} person(s) w/ weapon — ENEMY ATTACK`,
-        logistics:`WARN: ${persons} person(s) w/ bags — LOGISTIC MVMT`,
-        motion:'INFO: Motion / person detected in zone'
-      };
-      sysLog(msgs[thr]||'',thr==='enemy'?'alert':thr==='logistics'?'warn':'info');
-      addMvmt(thr,persons,weapons,speed);
-      if(thr==='enemy')triggerAlarm(); else stopAlarm();
-    }
+    alertTotal++; $('sAl').textContent=alertTotal;
+    const msgs={
+      enemy:`ALERT: ${persons} person(s) armed — ENEMY ATTACK`,
+      logistics:`WARN: ${persons} person(s) with bags — LOGISTIC MVMT`,
+      motion:'INFO: Motion / person detected in zone'
+    };
+    sysLog(msgs[thr]||'',thr==='enemy'?'alert':thr==='logistics'?'warn':'info');
+    addMvmt(thr,persons,weapons,speed);
+    if(thr==='enemy') triggerAlarm(); else stopAlarm();
+  } else if(thr==='standby'&&lastThreat!=='standby'){
+    lastThreat='standby';
   }
 }
 
@@ -754,6 +860,7 @@ function setSens(v){ sensitivity=parseInt(v); $('sensV').textContent=v; }
 
 function doReset(){
   simMode=null;alertTotal=0;lastThreat='standby';motionStart=null;lastCen=null;lastPreds=[];weaponFrameCount=0;
+  heldThreat='standby'; clearTimeout(threatHoldTimer);
   clearTimeout(simH);stopAlarm();
   ['sP','sW','sSp'].forEach(id=>$(id).textContent='0'); $('sAl').textContent='0';
   $('taDisp').textContent='STANDBY'; $('taDisp').className='ta standby';
