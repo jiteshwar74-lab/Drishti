@@ -630,87 +630,23 @@ function drawDetections(preds,motion){
 //   Upper body wider than lower = rifle held up
 // ═══════════════════════════════════════════════════════
 
-function countActivePixels(imageData){
-  const d=imageData.data; let count=0;
-  for(let i=0;i<d.length;i+=16){
-    const b=(d[i]+d[i+1]+d[i+2])/3;
-    if(b>30&&b<220) count++;
-  }
-  return count;
-}
-
-function scanForBarrel(x,y,w,h){
-  // Scan 8 horizontal rows in upper 65% of person bbox
-  // Looking for continuous dark run > 45% of bbox width = rifle barrel
-  const scanH=h*0.65;
-  const minRun=w*0.45;
-  for(let row=0;row<8;row++){
-    const sy=Math.max(0,Math.round(y+(scanH/8)*row));
-    const sw=Math.min(w,ov.width-Math.max(0,Math.round(x)));
-    if(sw<4) continue;
-    const rowData=ctx.getImageData(Math.max(0,Math.round(x)),sy,sw,2);
-    const d=rowData.data;
-    let darkRun=0,maxRun=0;
-    for(let i=0;i<d.length;i+=4){
-      const b=(d[i]+d[i+1]+d[i+2])/3;
-      if(b<90){darkRun++;if(darkRun>maxRun)maxRun=darkRun;}
-      else darkRun=0;
-    }
-    // maxRun is in pixel-samples; each sample = 1 pixel width
-    if(maxRun>(minRun/4)) return true;
-  }
-  return false;
-}
-
+// ── ARMED DETECTION — lightweight, mobile-safe ────
+// Pixel reads (getImageData) inside detection loop crash mobile Safari.
+// Using only bbox geometry signals — no pixel reads inside loop.
 function detectArmedPerson(preds){
   for(const p of preds){
     if(p.class!=='person'||p.score<0.62) continue;
     const[x,y,w,h]=p.bbox;
     let score=0;
-
-    // ── Signal 1: Aspect ratio (weight 3) ──
-    // Combat-ready rifle hold: ratio > 0.72
-    // Rifle slung on shoulder: ratio 0.52–0.72
     const ratio=w/h;
-    if(ratio>0.72){ score+=3; }
-    else if(ratio>0.52){ score+=1; }
-
-    // ── Signal 2: Upper body vs lower body width (weight 2) ──
-    // Rifle held up = upper half has more content than lower half
-    try{
-      const cx2=Math.max(0,Math.round(x)), cy2=Math.max(0,Math.round(y));
-      const cw2=Math.min(Math.round(w),ov.width-cx2);
-      const ch2=Math.min(Math.round(h*0.5),ov.height-cy2);
-      const ch3=Math.min(Math.round(h*0.5),ov.height-cy2-Math.round(h*0.5));
-      if(cw2>2&&ch2>2&&ch3>2){
-        const top=countActivePixels(ctx.getImageData(cx2,cy2,cw2,ch2));
-        const bot=countActivePixels(ctx.getImageData(cx2,cy2+Math.round(h*0.5),cw2,ch3));
-        if(bot>0&&top/bot>1.35) score+=2;
-      }
-    }catch(e){}
-
-    // ── Signal 3: Barrel scan (weight 3) ──
-    // Dark elongated horizontal region = AK-47 barrel
-    try{
-      if(scanForBarrel(x,y,w,h)) score+=3;
-    }catch(e){}
-
-    // ── Signal 4: Left-right asymmetry (weight 1) ──
-    // Rifle slung on one shoulder = asymmetric upper body
-    try{
-      const ax=Math.max(0,Math.round(x)), ay=Math.max(0,Math.round(y));
-      const aw=Math.min(Math.round(w*0.5),ov.width-ax);
-      const aw2=Math.min(Math.round(w*0.5),ov.width-ax-Math.round(w*0.5));
-      const ah=Math.min(Math.round(h*0.6),ov.height-ay);
-      if(aw>2&&aw2>2&&ah>2){
-        const L=countActivePixels(ctx.getImageData(ax,ay,aw,ah));
-        const R=countActivePixels(ctx.getImageData(ax+Math.round(w*0.5),ay,aw2,ah));
-        const total=L+R;
-        if(total>0&&Math.abs(L-R)/total>0.20) score+=1;
-      }
-    }catch(e){}
-
-    // Score >= 4: high confidence armed
+    // Signal 1: combat-ready hold (arms fully extended with rifle)
+    if(ratio>0.72) score+=3;
+    // Signal 2: rifle slung on shoulder (one arm extended)
+    else if(ratio>0.54) score+=1;
+    // Signal 3: unusually tall bbox relative to frame = person close + arms up
+    const frameRatio=h/ov.height;
+    if(frameRatio>0.5&&ratio>0.50) score+=2;
+    // Score >= 4 = armed
     if(score>=4) return true;
   }
   return false;
