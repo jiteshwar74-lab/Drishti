@@ -222,7 +222,7 @@ padding:4px 10px;border:1px solid var(–bdr);color:var(–dim);transition:all 0
     </div>
     <div class="brand">
       <h1>DRISHTI</h1>
-      <p>DEEP LEARNING REAL-TIME INTRUSION SURVEILLANCE WITH HIGH-ALTITUDE THREAT INTELLIGENCE</p>
+      <p>14 SIKH LI &nbsp;·&nbsp; HQ 8 MTN DIV &nbsp;·&nbsp; OP SAHAS</p>
     </div>
   </div>
   <div class="hdr-c">
@@ -231,7 +231,7 @@ padding:4px 10px;border:1px solid var(–bdr);color:var(–dim);transition:all 0
   </div>
   <div class="hdr-r">
     <div class="clock" id="clk">--:--:--</div>
-    <div class="unit">IC-90983Y · 14 SIKH LI</div>
+    <div class="unit">14 SIKH LI &nbsp;·&nbsp; <span id="hDate2"></span></div>
   </div>
 </header>
 
@@ -358,12 +358,21 @@ padding:4px 10px;border:1px solid var(–bdr);color:var(–dim);transition:all 0
 const PERSONS  = new Set(['person']);
 const VEHICLES = new Set(['bicycle','car','motorbike','bus','truck','boat','train','airplane']);
 const ANIMALS  = new Set(['bird','cat','dog','horse','sheep','cow','elephant','bear','zebra','giraffe']);
-// COCO-SSD has no gun/rifle class. Only flag objects that are unambiguously weapon-like
-// AND unlikely to appear in normal civilian settings near a post.
-// Bottle, fork, sports ball, scissors REMOVED — too many false positives.
-// On Raspberry Pi, this will be replaced with a custom YOLOv8 weapons model.
+// COCO-SSD cannot detect rifles/guns — not in its 80-class dataset.
+// Weapon detection on browser = impossible with COCO-SSD.
+// On Raspberry Pi: YOLOv8 custom weapons model will handle this.
+// For browser demo: use WEAPON SIM button to demonstrate enemy attack scenario.
 const WEAPONS  = new Set(['knife','baseball bat']);
 const BAGS     = new Set(['backpack','handbag','suitcase']);
+// These classes are IGNORED entirely — no box drawn, no alert
+const IGNORE   = new Set(['chair','couch','bed','dining table','toilet','tv','laptop','mouse',
+  'remote','keyboard','cell phone','microwave','oven','toaster','sink','refrigerator',
+  'book','clock','vase','scissors','teddy bear','hair drier','toothbrush',
+  'wine glass','cup','fork','knife_utensil','spoon','bowl','banana','apple',
+  'sandwich','orange','broccoli','carrot','hot dog','pizza','donut','cake',
+  'potted plant','mirror','bottle','sports ball','kite','baseball glove',
+  'skateboard','surfboard','tennis racket','frisbee','skis','snowboard',
+  'umbrella','tie','suitcase','handbag','backpack']);
 
 // ── STATE ─────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -384,6 +393,7 @@ function tick(){
   $('clk').textContent=n.toTimeString().slice(0,8);
   const ds=n.toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric'});
   $('hDate').textContent=ds; $('bDate').textContent=ds+' IST';
+  if($('hDate2')) $('hDate2').textContent=ds;
 }
 setInterval(tick,1000); tick();
 
@@ -491,26 +501,31 @@ async function loop(){
 
   const preds = simMode ? simPreds(simMode) : lastPreds;
   const counts = drawDetections(preds, motion);
-  classify(counts, motion);
+  classify(counts, motion, preds);
 
   requestAnimationFrame(loop);
 }
 
 // ── MOTION DETECTION ──────────────────────────────
+// Optimised for long-range outdoor detection (up to 50-80m in good light)
 function getMotion(){
   if(vid.readyState<2||ov.width<2) return{detected:false,cx:0,cy:0,strength:0};
   const curr=ctx.getImageData(0,0,ov.width,ov.height);
   if(!prevFrame){prevFrame=curr;return{detected:false,cx:0,cy:0,strength:0};}
   const d1=prevFrame.data,d2=curr.data;
-  const thresh=(11-sensitivity)*11;
-  let diff=0,sx=0,sy=0;
-  const W=ov.width;
-  for(let i=0;i<d1.length;i+=28){
+  // Lower threshold = picks up subtle distant movement
+  // sensitivity 1-10: at 5, threshold=22; at 10, threshold=11; at 1, threshold=44
+  const thresh=Math.max(8,(11-sensitivity)*8);
+  let diff=0,sx=0,sy=0; const W=ov.width;
+  // Sample every 4th pixel (denser sampling = catches small distant motion)
+  for(let i=0;i<d1.length;i+=16){
     const delta=Math.abs(d1[i]-d2[i])+Math.abs(d1[i+1]-d2[i+1])+Math.abs(d1[i+2]-d2[i+2]);
     if(delta>thresh){diff++;const idx=i/4;sx+=idx%W;sy+=Math.floor(idx/W);}
   }
   prevFrame=curr;
-  const det=diff>14;
+  // Lower minimum pixel count = detects distant/small movement
+  const minPx=Math.max(5,8-(sensitivity-1));
+  const det=diff>minPx;
   return{detected:det,cx:det?sx/diff:0,cy:det?sy/diff:0,strength:diff};
 }
 
@@ -522,12 +537,25 @@ function drawDetections(preds,motion){
     if(p.score<0.62) return;
     const[x,y,w,h]=p.bbox;
     const c=p.class;
-    const isP=PERSONS.has(c),isW=WEAPONS.has(c),isB=BAGS.has(c);
-    const isV=VEHICLES.has(c),isA=ANIMALS.has(c);
-    if(isP)persons++;if(isW)weapons++;if(isB)bags++;if(isV)vehicles++;if(isA)animals++;
+
+    // ONLY process known relevant classes — ignore everything else (chair, bottle, etc.)
+    const isP=PERSONS.has(c);
+    const isV=VEHICLES.has(c);
+    const isA=ANIMALS.has(c);
+    const isW=WEAPONS.has(c);
+    const isB=BAGS.has(c);
+
+    // Skip anything not in our relevant categories
+    if(!isP && !isV && !isA && !isW && !isB) return;
+
+    if(isP)persons++;
+    if(isW)weapons++;
+    if(isB)bags++;
+    if(isV)vehicles++;
+    if(isA)animals++;
     if(p.score>maxConf)maxConf=p.score;
 
-    const col=isW?'#ff1744':isP?'#00b0ff':isB?'#ffd600':isV?'#69f0ae':isA?'#ff9100':'#e040fb';
+    const col=isW?'#ff1744':isP?'#00b0ff':isB?'#ffd600':isV?'#69f0ae':isA?'#ff9100':'#00b0ff';
 
     // Filled box
     ctx.fillStyle=col+'16'; ctx.fillRect(x,y,w,h);
@@ -588,25 +616,41 @@ function drawDetections(preds,motion){
 }
 
 // ── THREAT CLASSIFICATION ─────────────────────────
+// NOTE: COCO-SSD cannot detect rifles, guns or AK-47s — not in its 80 classes.
+// Workaround: if a person bbox is unusually WIDE relative to height,
+// it suggests arms extended (holding rifle). This is a heuristic proxy.
+// On Raspberry Pi, YOLOv8 custom model will detect actual weapons.
 const THR_LABELS={standby:'STANDBY',motion:'MOTION ACTIVE',logistics:'LOGISTIC MVMT',enemy:'ENEMY ATTACK'};
 const BAN_TXT={enemy:'⚠  LIKELY ENEMY ATTACK',logistics:'⚡  LIKELY LOGISTIC MOVEMENT',motion:'◉  PERSON / MOTION DETECTED'};
 
-function classify({persons,weapons,bags,vehicles,animals,speed},motion){
+function hasArmedPosture(preds){
+  // Check if any person bbox has width:height ratio > 0.75 (arms out = holding something)
+  // Normal standing person has ratio ~0.35-0.55; arms extended = 0.7+
+  return preds.some(p=>{
+    if(p.class!=='person'||p.score<0.62) return false;
+    const[x,y,w,h]=p.bbox;
+    const ratio=w/h;
+    return ratio>0.72; // wide = arms extended
+  });
+}
+
+function classify({persons,weapons,bags,vehicles,animals,speed},motion,preds){
   let thr='standby',banCls='';
 
   if(persons>0||simMode){
     if(!motionStart)motionStart=new Date();
-    // Weapon needs multiple consecutive frames to confirm — reduces false positives
     if(weapons>0) weaponFrameCount++; else weaponFrameCount=0;
-    const weaponConfirmed = weaponFrameCount >= WEAPON_CONFIRM_FRAMES;
-    if((weaponConfirmed)||simMode==='weapon'){thr='enemy';banCls='enemy';}
+    const weaponConfirmed=weaponFrameCount>=WEAPON_CONFIRM_FRAMES;
+    // Also check armed posture heuristic
+    const armedPosture=hasArmedPosture(preds);
+    if(weaponConfirmed||armedPosture||simMode==='weapon'){thr='enemy';banCls='enemy';}
     else if(bags>0||simMode==='logistics'){thr='logistics';banCls='logistics';}
     else{thr='motion';banCls='motion';}
   } else if(motion.detected){
     if(!motionStart)motionStart=new Date();
     thr='motion';banCls='motion';
   } else{
-    motionStart=null;lastCen=null;stopAlarm();
+    motionStart=null;lastCen=null;weaponFrameCount=0;stopAlarm();
   }
 
   // Banner
