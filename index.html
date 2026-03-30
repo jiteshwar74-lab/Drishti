@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DRISHTI — Real-Time Intrusion Surveillance</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+<div class="app">
+
+<!-- HEADER -->
+
+<header class="hdr">
+  <div class="hdr-l">
+    <div class="emblem">
+      <svg viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="18" stroke="#00ff88" stroke-width="1.5" opacity="0.8"/>
+        <circle cx="20" cy="20" r="11" stroke="#00cc66" stroke-width="1" opacity="0.45"/>
+        <circle cx="20" cy="20" r="3.5" fill="#00ff88"/>
+        <line x1="20" y1="2" x2="20" y2="9" stroke="#00ff88" stroke-width="1.5"/>
+        <line x1="20" y1="31" x2="20" y2="38" stroke="#00ff88" stroke-width="1.5"/>
+        <line x1="2" y1="20" x2="9" y2="20" stroke="#00ff88" stroke-width="1.5"/>
+        <line x1="31" y1="20" x2="38" y2="20" stroke="#00ff88" stroke-width="1.5"/>
+        <path d="M13 13 L20 9 L27 13 L27 27 L13 27 Z" stroke="#00cc66" stroke-width="0.8" fill="none" opacity="0.5"/>
+      </svg>
+    </div>
+    <div class="brand">
+      <h1>DRISHTI</h1>
+      <p>14 SIKH LI &nbsp;·&nbsp; HQ 8 MTN DIV</p>
+    </div>
+  </div>
+  <div class="hdr-c">
+    <div class="badge" id="sysBadge">■ OFFLINE</div>
+    <div class="badge">HQ 8 MTN DIV · 2026-27</div>
+  </div>
+  <div class="hdr-r">
+    <div class="clock" id="clk">--:--:--</div>
+    <div class="unit">14 SIKH LI &nbsp;·&nbsp; <span id="hDate2"></span></div>
+  </div>
+</header>
+
+<!-- BODY -->
+
+<div class="body">
+
+  <!-- FEED -->
+
+  <div class="feed" id="feedZone">
+    <video id="vid" autoplay muted playsinline webkit-playsinline></video>
+    <canvas id="ov"></canvas>
+
+```
+<div class="brk tl"></div><div class="brk tr"></div>
+<div class="brk bl"></div><div class="brk br"></div>
+
+<div class="hud tl" id="hTL">CAM-01 · ESP32-CAM SIM<br>SECTOR: ALPHA · 18,000 FT<br>FPS: <span id="hFPS">--</span> · <span id="hRES">--</span></div>
+<div class="hud tr" id="hTR"><span id="hDate">--</span> IST<br>ENGINE: COCO-SSD v2<br>CONF: <span id="hConf">--</span>%</div>
+<div class="hud bl" id="hBL">PERSONS: <span id="hP">0</span><br>VEHICLES: <span id="hV">0</span><br>ANIMALS: <span id="hA">0</span></div>
+<div class="hud br" id="hBR">SPEED: <span id="hSpd">0</span> km/h<br>WEAPONS: <span id="hW">0</span><br>MOTION: <span id="hMot">CLEAR</span></div>
+
+<div class="thr-ban" id="thrBan"></div>
+
+<!-- IDLE -->
+<div class="idle" id="idleScr">
+  <div class="idle-ring">
+    <svg viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="16" stroke="#00ff88" stroke-width="1.5" opacity="0.35"/>
+      <circle cx="20" cy="20" r="8" stroke="#00cc66" stroke-width="1" opacity="0.25"/>
+      <circle cx="20" cy="20" r="3" fill="#00ff88" opacity="0.45"/>
+      <line x1="20" y1="4" x2="20" y2="12" stroke="#00ff88" stroke-width="1" opacity="0.45"/>
+      <line x1="20" y1="28" x2="20" y2="36" stroke="#00ff88" stroke-width="1" opacity="0.45"/>
+      <line x1="4" y1="20" x2="12" y2="20" stroke="#00ff88" stroke-width="1" opacity="0.45"/>
+      <line x1="28" y1="20" x2="36" y2="20" stroke="#00ff88" stroke-width="1" opacity="0.45"/>
+    </svg>
+  </div>
+  <div class="idle-txt">DRISHTI SURVEILLANCE SYSTEM<br>ESP32-CAM FEED NOT INITIALIZED<br>AI DETECTION ENGINE: STANDBY<br><br>TAP ACTIVATE TO BEGIN SURVEILLANCE</div>
+  <button class="act-btn" id="actBtn">▶ ACTIVATE FEED</button>
+</div>
+
+<!-- LOADING -->
+<div class="load" id="loadScr">
+  <div class="spin"></div>
+  <div class="load-msg" id="loadMsg">INITIALIZING...</div>
+  <div class="load-bar"><div class="load-fill" id="loadFill"></div></div>
+</div>
+```
+
+  </div>
+
+  <!-- SIDEBAR -->
+
+  <aside class="side">
+
+```
+<div class="pnl">
+  <div class="pnl-h">THREAT ASSESSMENT</div>
+  <div class="ta standby" id="taDisp">STANDBY</div>
+</div>
+
+<div class="pnl">
+  <div class="pnl-h">DETECTION STATISTICS</div>
+  <div class="sg">
+    <div class="sb"><span class="sl">PERSONS</span><div class="sv g" id="sP">0</div></div>
+    <div class="sb"><span class="sl">WEAPONS</span><div class="sv r" id="sW">0</div></div>
+    <div class="sb"><span class="sl">SPEED km/h</span><div class="sv b" id="sSp">0</div></div>
+    <div class="sb"><span class="sl">TOTAL ALERTS</span><div class="sv y" id="sAl">0</div></div>
+  </div>
+</div>
+
+<div class="pnl">
+  <div class="pnl-h">MOVEMENT TRACKER</div>
+  <div id="mvLog"><div class="me"><span style="color:var(--dim)">AWAITING FIRST DETECTION...</span></div></div>
+</div>
+
+<div class="pnl">
+  <div class="pnl-h">SYSTEM CONTROLS</div>
+  <div class="sr">
+    <label>SENSITIVITY</label>
+    <input type="range" id="sensSl" min="1" max="10" value="5" oninput="setSens(this.value)">
+    <span id="sensV">5</span>
+  </div>
+  <div class="cg" style="margin-top:6px;">
+    <button class="cb r" onclick="runSim('weapon')">⚠ WEAPON<br>SCENARIO</button>
+    <button class="cb y" onclick="runSim('logistics')">🎒 LOGISTICS<br>SCENARIO</button>
+    <button class="cb b" id="almBtn" onclick="toggleAlarm()">🔔 ALARM<br>ON</button>
+    <button class="cb d" onclick="doReset()">↺ RESET<br>SYSTEM</button>
+  </div>
+</div>
+
+<div class="pnl" style="flex:1;overflow:hidden;">
+  <div class="pnl-h">EVENT LOG</div>
+  <div class="ls" id="evLog"></div>
+</div>
+```
+
+  </aside>
+</div>
+
+<!-- BOTTOM BAR -->
+
+<div class="bot">
+  <div class="ss">
+    <div class="si"><div class="dot" id="dCam"></div><span>CAM</span></div>
+    <div class="si"><div class="dot" id="dAI"></div><span>AI ENGINE</span></div>
+    <div class="si"><div class="dot" id="dMot"></div><span>MOTION</span></div>
+    <div class="si"><div class="dot" id="dThr"></div><span>THREAT</span></div>
+  </div>
+  <div class="alm" id="almSt">● ALARM STANDBY</div>
+  <div class="ss">
+    <div class="si" id="bFPS">FPS: --</div>
+    <div class="si" id="bMdl">MODEL: OFFLINE</div>
+    <div class="si" id="bDate" style="color:var(--dim)"></div>
+  </div>
+</div>
+
+</div>
+
+<!-- /app -->
+
+<script src="app.js"></script>
+</body>
+</html>
