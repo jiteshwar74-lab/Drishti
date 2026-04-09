@@ -15,11 +15,13 @@ def train_model():
         data='../datasets/weapon-detection-1/data.yaml', 
         epochs=100,         # With 40k images, 50 epochs is plenty
         imgsz=640,         # Standard resolution
-        batch=8,          # Adjust to 8 if you get "Out of Memory"
+        batch=8,          # Adjust to 4 if you get "Out of Memory"
         device=0,          # RTX 3060
         project='../models',      # Everything saves inside /models
         name='drishti_v1',     # Your weights will be in models/drishti_v1/weights/
         # Native Free Augmentations:
+        cache=False,          # Set to False. 'True' will crash your System RAM with 40k images.
+        amp=True,             # ENABLE Automatic Mixed Precision. Saves ~20-30% VRAM.
         multi_scale=True,      # Varies image size by +/- 33% during training
         label_smoothing=0.1,   # Helps the AI not be "too sure" about messy labels
         box=7.5,               # Increases weight on the "box" accuracy (good for knives)

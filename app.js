@@ -1,24 +1,16 @@
 'use strict';
 
 // ── OBJECT CLASSES ────────────────────────────────
-const PERSONS  = new Set(['person']);
-const VEHICLES = new Set(['bicycle','car','motorbike','bus','truck','boat','train','airplane']);
-const ANIMALS  = new Set(['bird','cat','dog','horse','sheep','cow','elephant','bear','zebra','giraffe']);
-// COCO-SSD cannot detect rifles/guns — not in its 80-class dataset.
-// Weapon detection on browser = impossible with COCO-SSD.
-// On Raspberry Pi: YOLOv8 custom weapons model will handle this.
-// For browser demo: use WEAPON SIM button to demonstrate enemy attack scenario.
-const WEAPONS  = new Set(['knife','baseball bat']);
-const BAGS     = new Set(['backpack','handbag','suitcase']);
-// These classes are IGNORED entirely — no box drawn, no alert
-const IGNORE   = new Set(['chair','couch','bed','dining table','toilet','tv','laptop','mouse',
-    'remote','keyboard','cell phone','microwave','oven','toaster','sink','refrigerator',
-    'book','clock','vase','scissors','teddy bear','hair drier','toothbrush',
-    'wine glass','cup','fork','knife_utensil','spoon','bowl','banana','apple',
-    'sandwich','orange','broccoli','carrot','hot dog','pizza','donut','cake',
-    'potted plant','mirror','bottle','sports ball','kite','baseball glove',
-    'skateboard','surfboard','tennis racket','frisbee','skis','snowboard',
-    'umbrella','tie','suitcase','handbag','backpack']);
+const LABELS = {
+    0: { name: 'person' },
+    1: { name: 'firearm' },
+    2: { name: 'knife' },
+    3: { name: 'grenade' }
+};
+const PERSON_CLASS = 'person';
+const WEAPON_CLASSES = new Set(['firearm', 'knife', 'grenade']);
+// We can treat grenades/heavy bags as logistics or high-threat
+const LOGISTIC_CLASSES = new Set(['grenade']);
 
 // ── STATE ─────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -90,16 +82,21 @@ async function activate(){
         // Show HUDs
         document.querySelectorAll('.brk,.hud').forEach(e=>e.style.display='block');
 
-        try{
-        await window.tf.ready();
-        setLoad('COMPILING NEURAL NETWORK...',60);
-        model=await cocoSsd.load({base:'mobilenet_v2'});
-        setLoad('AI MODEL READY — CALIBRATING...',88);
-        $('dAI').className='dot on'; $('bMdl').textContent='MODEL: COCO-SSD v2';
-        sysLog('AI engine loaded — COCO-SSD MobileNetV2','ok');
-        }catch(e){
-        sysLog('AI model failed — motion-only mode','warn');
-        $('bMdl').textContent='MODEL: MOTION-ONLY';
+        
+        try {
+            await window.tf.ready();
+            setLoad('COMPILING DRISHTI NEURAL NETWORK...', 60);
+            
+            // PATH: Update this to where you uploaded your REMASTERED_LABELS/TFJS export
+            model = await tf.loadGraphModel('./model/model.json'); 
+            
+            setLoad('DRISHTI AI READY — CALIBRATING...', 88);
+            $('dAI').className = 'dot on'; 
+            $('bMdl').textContent = 'MODEL: DRISHTI v1 (YOLOv8)';
+            sysLog('Custom YOLOv8 engine loaded', 'ok');
+        } catch (e) {
+            console.error(e);
+            sysLog('Model load failed - check console', 'warn');
         }
 
         setLoad('SYSTEM ACTIVE',100);
@@ -146,8 +143,39 @@ async function loop(){
 
     // AI — every 5th frame (balances accuracy vs framerate)
     frameIdx++;
-    if(model && simMode===null && frameIdx%5===0 && vid.readyState>=2){
-        try{ lastPreds=await model.detect(vid); }catch{ lastPreds=[]; }
+    // INSIDE loop() function:
+    if (model && simMode === null && frameIdx % 5 === 0 && vid.readyState >= 2) {
+        // 1. Wrap tensor creation in tidy for immediate cleanup of intermediate steps
+        const tensor = tf.tidy(() => {
+            return tf.browser.fromPixels(vid)
+                .resizeNearestNeighbor([640, 640])
+                .div(255.0)
+                .expandDims(0);
+        });
+
+        try {
+            // 2. Run model
+            const predictions = await model.executeAsync(tensor);
+            
+            // Debugging the shape is smart—YOLOv8 is often [1, 8, 8400] 
+            // but can be [1, 8400, 8] depending on the export tool used.
+            if (frameIdx % 50 === 0) console.log('YOLO Shape:', predictions.shape);
+
+            // 3. Process
+            lastPreds = processYOLO(predictions);
+
+            // 4. CRITICAL: Dispose of the prediction tensors to free GPU memory
+            if (Array.isArray(predictions)) {
+                predictions.forEach(t => t.dispose());
+            } else {
+                predictions.dispose();
+            }
+        } catch (err) {
+            console.error("Inference failed:", err);
+        } finally {
+            // 5. Always dispose the input tensor
+            tensor.dispose();
+        }
     }
 
     const preds = simMode ? simPreds(simMode) : lastPreds;
@@ -185,28 +213,19 @@ function drawDetections(preds,motion){
     let persons=0,weapons=0,bags=0,vehicles=0,animals=0,maxConf=0,speed=0;
 
     preds.forEach(p=>{
-        if(p.score<0.62) return;
-        const[x,y,w,h]=p.bbox;
-        const c=p.class;
+        if (p.score < 0.45) return; // Matches YOLO threshold
+        const [x, y, w, h] = p.bbox;
+        const c = p.class; // e.g., 'gun'
 
-        // ONLY process known relevant classes — ignore everything else (chair, bottle, etc.)
-        const isP=PERSONS.has(c);
-        const isV=VEHICLES.has(c);
-        const isA=ANIMALS.has(c);
-        const isW=WEAPONS.has(c);
-        const isB=BAGS.has(c);
+        const isP = c === PERSON_CLASS;
+        const isW = WEAPON_CLASSES.has(c);
 
-        // Skip anything not in our relevant categories
-        if(!isP && !isV && !isA && !isW && !isB) return;
+        if (isP) persons++;
+        if (isW) weapons++;
+        if (p.score > maxConf) maxConf = p.score;
 
-        if(isP)persons++;
-        if(isW)weapons++;
-        if(isB)bags++;
-        if(isV)vehicles++;
-        if(isA)animals++;
-        if(p.score>maxConf)maxConf=p.score;
-
-        const col=isW?'#ff1744':isP?'#00b0ff':isB?'#ffd600':isV?'#69f0ae':isA?'#ff9100':'#00b0ff';
+        // Tactical Red for Weapons, Cyan for Persons
+        const col = isW ? '#ff1744' : '#00b0ff';
 
         // Filled box
         ctx.fillStyle=col+'16'; ctx.fillRect(x,y,w,h);
@@ -220,15 +239,15 @@ function drawDetections(preds,motion){
             ctx.setLineDash([7,4]); ctx.stroke(); ctx.setLineDash([]);
         }
 
-        // Corner ticks for vehicles/animals
-        if(isV||isA){
-            const tl=10;
-            [[x,y+tl,x,y,x+tl,y],[x+w-tl,y,x+w,y,x+w,y+tl],
-            [x,y+h-tl,x,y+h,x+tl,y+h],[x+w-tl,y+h,x+w,y+h,x+w,y+h-tl]].forEach(([ax,ay,bx,by,cx2,cy2])=>{
-                ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.lineTo(cx2,cy2);
-                ctx.strokeStyle=col+'cc';ctx.lineWidth=2;ctx.stroke();
-            });
-        }
+        // // Corner ticks for vehicles/animals
+        // if(isV||isA){
+        //     const tl=10;
+        //     [[x,y+tl,x,y,x+tl,y],[x+w-tl,y,x+w,y,x+w,y+tl],
+        //     [x,y+h-tl,x,y+h,x+tl,y+h],[x+w-tl,y+h,x+w,y+h,x+w,y+h-tl]].forEach(([ax,ay,bx,by,cx2,cy2])=>{
+        //         ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.lineTo(cx2,cy2);
+        //         ctx.strokeStyle=col+'cc';ctx.lineWidth=2;ctx.stroke();
+        //     });
+        // }
 
         // Label
         const fs=Math.max(11,ov.width*0.018);
@@ -258,12 +277,19 @@ function drawDetections(preds,motion){
             lastCen={x:cx,y:cy};
     }
 
-    $('hP').textContent=persons; $('hV').textContent=vehicles;
-    $('hA').textContent=animals; $('hW').textContent=weapons;
-    $('hSpd').textContent=speed; $('hConf').textContent=maxConf>0?Math.round(maxConf*100):'--';
-    $('hMot').textContent=(motion.detected||persons>0)?'ACTIVE':'CLEAR';
-    $('dMot').className=(motion.detected||persons>0)?'dot on':'dot';
-    return{persons,weapons,bags,vehicles,animals,speed};
+    $('hP').textContent = persons; 
+    $('hW').textContent = weapons;
+    $('hSpd').textContent = speed; 
+    $('hConf').textContent = maxConf > 0 ? Math.round(maxConf * 100) : '--';
+
+    // removed vehicles/animals from the YAML, you can set these to 0 or hide them
+    if ($('hV')) $('hV').textContent = '0'; 
+    if ($('hA')) $('hA').textContent = '0';
+
+    $('hMot').textContent = (motion.detected || persons > 0) ? 'ACTIVE' : 'CLEAR';
+    $('dMot').className = (motion.detected || persons > 0) ? 'dot on' : 'dot';
+
+    return { persons, weapons, speed };
 }
 
 // ── THREAT CLASSIFICATION ─────────────────────────
@@ -276,27 +302,6 @@ function drawDetections(preds,motion){
 //   Upper body wider than lower = rifle held up
 // ═══════════════════════════════════════════════════════
 
-// ── ARMED DETECTION — lightweight, mobile-safe ────
-// Pixel reads (getImageData) inside detection loop crash mobile Safari.
-// Using only bbox geometry signals — no pixel reads inside loop.
-function detectArmedPerson(preds){
-    for(const p of preds){
-        if(p.class!=='person'||p.score<0.62) continue;
-        const[x,y,w,h]=p.bbox;
-        let score=0;
-        const ratio=w/h;
-        // Signal 1: combat-ready hold (arms fully extended with rifle)
-        if(ratio>0.72) score+=3;
-        // Signal 2: rifle slung on shoulder (one arm extended)
-        else if(ratio>0.54) score+=1;
-        // Signal 3: unusually tall bbox relative to frame = person close + arms up
-        const frameRatio=h/ov.height;
-        if(frameRatio>0.5&&ratio>0.50) score+=2;
-        // Score >= 4 = armed
-        if(score>=4) return true;
-    }
-    return false;
-}
 
 // ── THREAT CLASSIFICATION ─────────────────────────
 const THR_LABELS={standby:'STANDBY',motion:'MOTION ACTIVE',logistics:'LOGISTIC MVMT',enemy:'ENEMY ATTACK'};
@@ -331,23 +336,29 @@ function setDisplayThreat(thr){
     $('dThr').className=display==='enemy'?'dot a':display==='logistics'?'dot w':display==='motion'?'dot on':'dot';
 }
 
-function classify({persons,weapons,bags,vehicles,animals,speed},motion,preds){
+function classify({persons, weapons, speed}, motion, preds){
     let thr='standby';
 
-    if(persons>0||simMode){
-        if(!motionStart)motionStart=new Date();
-        if(weapons>0) weaponFrameCount++; else weaponFrameCount=0;
-        const weaponConfirmed=weaponFrameCount>=WEAPON_CONFIRM_FRAMES;
-        const armed=detectArmedPerson(preds);
-        if(weaponConfirmed||armed||simMode==='weapon') thr='enemy';
-        else if(bags>0||simMode==='logistics') thr='logistics';
-        else thr='motion';
-    } else if(motion.detected){
-        if(!motionStart)motionStart=new Date();
-        thr='motion';
-    } else{
-        motionStart=null; lastCen=null; weaponFrameCount=0;
-        if(heldThreat==='standby') stopAlarm();
+    if (persons > 0 || weapons > 0 || simMode) {
+        if (!motionStart) motionStart = new Date();
+        
+        // Check if any detected weapon is actually a logistic item
+        const hasLogistic = preds.some(p => LOGISTIC_CLASSES.has(p.class));
+        const hasLethal = preds.some(p => p.class === 'firearm' || p.class === 'knife');
+
+        if (hasLethal || simMode === 'weapon') {
+            thr = 'enemy';
+        } else if (hasLogistic) {
+            thr = 'logistics';
+        } else {
+            thr = 'motion';
+        }
+    } else if (motion.detected) {
+        if (!motionStart) motionStart = new Date();
+        thr = 'motion';
+    } else {
+        motionStart = null; weaponFrameCount = 0;
+        if (heldThreat === 'standby') stopAlarm();
     }
 
     setDisplayThreat(thr);
@@ -415,18 +426,16 @@ function toggleAlarm(){
 
 // ── SIMULATIONS ───────────────────────────────────
 function simPreds(type){
-    const cw=ov.width,ch=ov.height,t=Date.now()/1200;
-    const ox=Math.sin(t)*cw*0.04,oy=Math.cos(t*0.7)*ch*0.02;
+    const cw=ov.width, ch=ov.height;
     const p=[
-        {class:'person',score:0.91,bbox:[cw*0.14+ox,ch*0.12+oy,cw*0.19,ch*0.62]},
-        {class:'person',score:0.87,bbox:[cw*0.54+ox,ch*0.18+oy,cw*0.18,ch*0.58]}
+        {class:'person', score:0.91, bbox:[cw*0.14, ch*0.12, cw*0.19, ch*0.62]}
     ];
     if(type==='weapon'){
-        p.push({class:'baseball bat',score:0.76,bbox:[cw*0.22+ox,ch*0.52,cw*0.09,ch*0.22]});
-        p.push({class:'knife',score:0.71,bbox:[cw*0.61+ox,ch*0.56,cw*0.06,ch*0.16]});
+        // Use 'firearm' instead of 'baseball bat' to match your new LABELS
+        p.push({class:'firearm', score:0.88, bbox:[cw*0.22, ch*0.52, cw*0.09, ch*0.22]});
     } else {
-        p.push({class:'backpack',score:0.84,bbox:[cw*0.16+ox,ch*0.34,cw*0.13,ch*0.28]});
-        p.push({class:'suitcase',score:0.79,bbox:[cw*0.58+ox,ch*0.56,cw*0.11,ch*0.24]});
+        // Use 'grenade' or just keep as motion for testing logistics
+        p.push({class:'grenade', score:0.74, bbox:[cw*0.16, ch*0.34, cw*0.13, ch*0.28]});
     }
     return p;
 }
@@ -450,4 +459,51 @@ function doReset(){
     $('mvLog').innerHTML='<div class="me"><span style="color:var(--dim)">AWAITING DETECTION...</span></div>';
     $('evLog').innerHTML=''; ['dMot','dThr'].forEach(id=>$(id).className='dot');
     sysLog('System reset — all counters cleared','ok');
+}
+
+
+// ── YOLO Processing ──────────────────────────────────────────
+
+function processYOLO(output) {
+    const data = output.arraySync()[0]; 
+    const boxes = [];
+    const scores = [];
+    const classIds = [];
+
+    for (let i = 0; i < 8400; i++) {
+        const classes = [data[4][i], data[5][i], data[6][i], data[7][i]];
+        const maxScore = Math.max(...classes);
+        
+        if (maxScore > 0.45) {
+            const clsId = classes.indexOf(maxScore);
+            // YOLO format is [cx, cy, w, h] -> convert to [y1, x1, y2, x2] for TFJS NMS
+            const cx = data[0][i];
+            const cy = data[1][i];
+            const w = data[2][i];
+            const h = data[3][i];
+            
+            boxes.push([cy - h/2, cx - w/2, cy + h/2, cx + w/2]);
+            scores.push(maxScore);
+            classIds.push(clsId);
+        }
+    }
+
+    if (boxes.length === 0) return [];
+
+    // Perform Non-Maximum Suppression to remove overlapping boxes
+    const nmsIndices = tf.image.nonMaxSuppression(boxes, scores, 20, 0.5).arraySync();
+    
+    return nmsIndices.map(idx => {
+        const [y1, x1, y2, x2] = boxes[idx];
+        return {
+            class: LABELS[classIds[idx]].name.toLowerCase(),
+            score: scores[idx],
+            bbox: [
+                x1 * ov.width, 
+                y1 * ov.height, 
+                (x2 - x1) * ov.width, 
+                (y2 - y1) * ov.height
+            ]
+        };
+    });
 }
