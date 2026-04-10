@@ -14,7 +14,7 @@ const LOGISTIC_CLASSES = new Set(['grenade']);
 
 // ── STATE ─────────────────────────────────────────
 const $ = id => document.getElementById(id);
-const vid = $('vid'), ov = $('ov'), ctx = ov.getContext('2d');
+const vid = $('vid'), ov = $('ov'), ctx = ov.getContext('2d', { willReadFrequently: true });
 let model=null, running=false, simMode=null;
 let alarmOn=true, alarmFiring=false;
 let alertTotal=0, lastThreat='standby';
@@ -88,7 +88,7 @@ async function activate(){
             setLoad('COMPILING DRISHTI NEURAL NETWORK...', 60);
             
             // PATH: Update this to where you uploaded your REMASTERED_LABELS/TFJS export
-            model = await tf.loadGraphModel('./model/model.json'); 
+            model = await tf.loadGraphModel('./models/drishti_v1_tfjs/model.json'); 
             
             setLoad('DRISHTI AI READY — CALIBRATING...', 88);
             $('dAI').className = 'dot on'; 
@@ -120,51 +120,49 @@ async function activate(){
 function setLoad(m,p){ $('loadMsg').textContent=m; $('loadFill').style.width=p+'%'; }
 
 // ── MAIN LOOP ─────────────────────────────────────
-async function loop(){
-    if(!running) return;
+async function loop() {
+    if (!running) return;
 
     // FPS counter
     frameCount++;
-    const now=Date.now();
-    if(now-fpsTimer>=1000){
-        fps=frameCount; frameCount=0; fpsTimer=now;
-        $('hFPS').textContent=fps; $('bFPS').textContent='FPS: '+fps;
+    const now = Date.now();
+    if (now - fpsTimer >= 1000) {
+        fps = frameCount; frameCount = 0; fpsTimer = now;
+        $('hFPS').textContent = fps; $('bFPS').textContent = 'FPS: ' + fps;
     }
 
-    // Draw live video every frame — this is what makes it feel live
-    if(vid.readyState>=2){
-        ov.width=vid.videoWidth||ov.width;
-        ov.height=vid.videoHeight||ov.height;
-        ctx.drawImage(vid,0,0,ov.width,ov.height);
+    // Draw live video
+    if (vid.readyState >= 2) {
+        ov.width = vid.videoWidth || ov.width;
+        ov.height = vid.videoHeight || ov.height;
+        ctx.drawImage(vid, 0, 0, ov.width, ov.height);
     }
 
-    // Motion — every frame
-    const motion=getMotion();
+    const motion = getMotion();
 
-    // AI — every 5th frame (balances accuracy vs framerate)
     frameIdx++;
-    // INSIDE loop() function:
     if (model && simMode === null && frameIdx % 5 === 0 && vid.readyState >= 2) {
-        // 1. Wrap tensor creation in tidy for immediate cleanup of intermediate steps
+        
+        // --- THE UNIVERSAL FIX: LETTERBOXING ---
         const tensor = tf.tidy(() => {
-            return tf.browser.fromPixels(vid)
-                .resizeNearestNeighbor([640, 640])
+            const img = tf.browser.fromPixels(vid);
+            const [h, w] = img.shape;
+            const max = Math.max(h, w);
+            
+            // Pad the shorter side to make it a square without stretching the image
+            const padY = Math.floor((max - h) / 2);
+            const padX = Math.floor((max - w) / 2);
+            
+            return img.pad([[padY, padY], [padX, padX], [0, 0]])
+                .resizeBilinear([640, 640]) // Bilinear is better than NearestNeighbor for small objects
                 .div(255.0)
                 .expandDims(0);
         });
 
         try {
-            // 2. Run model
             const predictions = await model.executeAsync(tensor);
-            
-            // Debugging the shape is smart—YOLOv8 is often [1, 8, 8400] 
-            // but can be [1, 8400, 8] depending on the export tool used.
-            if (frameIdx % 50 === 0) console.log('YOLO Shape:', predictions.shape);
-
-            // 3. Process
             lastPreds = processYOLO(predictions);
 
-            // 4. CRITICAL: Dispose of the prediction tensors to free GPU memory
             if (Array.isArray(predictions)) {
                 predictions.forEach(t => t.dispose());
             } else {
@@ -173,7 +171,6 @@ async function loop(){
         } catch (err) {
             console.error("Inference failed:", err);
         } finally {
-            // 5. Always dispose the input tensor
             tensor.dispose();
         }
     }
@@ -293,13 +290,7 @@ function drawDetections(preds,motion){
 }
 
 // ── THREAT CLASSIFICATION ─────────────────────────
-// ═══════════════════════════════════════════════════════
-// DRISHTI — MULTI-SIGNAL ARMED PERSON DETECTION
-// Based on human body proportion science:
-//   Normal person w/h ratio = 0.26–0.45
-//   Arms out holding rifle  = 0.72–1.1
-//   AK-47 length = 87cm ≈ 35-40% of body height
-//   Upper body wider than lower = rifle held up
+
 // ═══════════════════════════════════════════════════════
 
 
@@ -465,24 +456,47 @@ function doReset(){
 // ── YOLO Processing ──────────────────────────────────────────
 
 function processYOLO(output) {
-    const data = output.arraySync()[0]; 
+    // 1. Reshape YOLOv8 output [1, 8, 8400] -> [8400, 8]
+    const reshapedOutput = tf.tidy(() => {
+        return output.transpose([0, 2, 1]).squeeze();
+    });
+
+    const data = reshapedOutput.arraySync(); 
+    reshapedOutput.dispose(); 
+
     const boxes = [];
     const scores = [];
     const classIds = [];
 
     for (let i = 0; i < 8400; i++) {
-        const classes = [data[4][i], data[5][i], data[6][i], data[7][i]];
-        const maxScore = Math.max(...classes);
+        const row = data[i];
         
-        if (maxScore > 0.45) {
+        // IMPORTANT: YOLOv8 usually outputs coordinates in pixels relative to its 640x640 input.
+        // We MUST normalize these by dividing by 640 so they work with any canvas size.
+        const cx = row[0] / 640;
+        const cy = row[1] / 640;
+        const w  = row[2] / 640;
+        const h  = row[3] / 640;
+        
+        const classes = row.slice(4); 
+        const maxScore = Math.max(...classes);
+
+        // Add this temporary log inside the for-loop
+        if (maxScore > 0.1) {
+            console.log(`Detected something! ClassIndex: ${classes.indexOf(maxScore)}, Confidence: ${maxScore.toFixed(2)}`);
+        }
+
+        // FIX: Define clsId INSIDE the score check
+        if (maxScore > 0.45) { 
             const clsId = classes.indexOf(maxScore);
-            // YOLO format is [cx, cy, w, h] -> convert to [y1, x1, y2, x2] for TFJS NMS
-            const cx = data[0][i];
-            const cy = data[1][i];
-            const w = data[2][i];
-            const h = data[3][i];
             
-            boxes.push([cy - h/2, cx - w/2, cy + h/2, cx + w/2]);
+            // Convert center [cx, cy, w, h] to corner [y1, x1, y2, x2] for TFJS NMS
+            const x1 = cx - w / 2;
+            const y1 = cy - h / 2;
+            const x2 = cx + w / 2;
+            const y2 = cy + h / 2;
+
+            boxes.push([y1, x1, y2, x2]);
             scores.push(maxScore);
             classIds.push(clsId);
         }
@@ -490,16 +504,16 @@ function processYOLO(output) {
 
     if (boxes.length === 0) return [];
 
-    // Perform Non-Maximum Suppression to remove overlapping boxes
+    // 2. Perform Non-Maximum Suppression (NMS) to clean up overlapping boxes
     const nmsIndices = tf.image.nonMaxSuppression(boxes, scores, 20, 0.5).arraySync();
     
     return nmsIndices.map(idx => {
         const [y1, x1, y2, x2] = boxes[idx];
         return {
-            class: LABELS[classIds[idx]].name.toLowerCase(),
+            class: LABELS[classIds[idx]].name,
             score: scores[idx],
             bbox: [
-                x1 * ov.width, 
+                x1 * ov.width,        // Scaling normalized 0-1 back to canvas
                 y1 * ov.height, 
                 (x2 - x1) * ov.width, 
                 (y2 - y1) * ov.height

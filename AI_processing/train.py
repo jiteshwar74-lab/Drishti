@@ -8,10 +8,11 @@ def train_model():
         os.makedirs(model_dir)
 
     # Load the Nano model (best for browser/mobile speed)
-    model = YOLO('yolov8n.pt')
+    model = YOLO('E:/AI ML/DRISHTI/runs/models/drishti_v13/weights/last.pt')
 
     # Training with native augmentations
     results = model.train(
+        resume=True,
         data='../datasets/weapon-detection-1/data.yaml', 
         epochs=100,         # With 40k images, 50 epochs is plenty
         imgsz=640,         # Standard resolution
@@ -22,7 +23,7 @@ def train_model():
         # Native Free Augmentations:
         cache=False,          # Set to False. 'True' will crash your System RAM with 40k images.
         amp=True,             # ENABLE Automatic Mixed Precision. Saves ~20-30% VRAM.
-        multi_scale=True,      # Varies image size by +/- 33% during training
+        multi_scale=False,      # Varies image size by +/- 33% during training
         label_smoothing=0.1,   # Helps the AI not be "too sure" about messy labels
         box=7.5,               # Increases weight on the "box" accuracy (good for knives)
         cls=0.5,               # Balance for classification
