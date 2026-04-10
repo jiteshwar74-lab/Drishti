@@ -6,8 +6,8 @@ os.environ['YOLO_OFFLINE'] = 'True'
 os.environ['TF_USE_LEGACY_KERAS'] = '1'
 
 def force_export():
-    model_path = r"E:\AI ML\DRISHTI\runs\models\drishti_v13\weights\best.pt"
-    output_dir = r"E:\AI ML\DRISHTI\models"
+    model_path = r"E:/AI ML/DRISHTI/runs/models/drishti_v4_final/weights/best.pt"
+    output_dir = r"E:/AI ML/DRISHTI/models"
     
     print("--- Attempting Surgical Export ---")
     
@@ -19,12 +19,12 @@ def force_export():
         "format=tfjs",
         "imgsz=640",
         f"project={output_dir}",
-        "name=drishti_v1_tfjs"
+        "name=drishti_v2_tfjs"
     ]
     
     try:
         subprocess.run(command, check=True)
-        print(f"\nSUCCESS! Model should be in {output_dir}/drishti_v1_tfjs")
+        print(f"\nSUCCESS! Model should be in {output_dir}/drishti_v2_tfjs")
     except Exception as e:
         print(f"\nExport failed. Error: {e}")
         print("\nIf you see 'onnx.serialization' again, it means the Virtual Environment")

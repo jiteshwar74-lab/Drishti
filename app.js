@@ -5,12 +5,11 @@ const LABELS = {
     0: { name: 'person' },
     1: { name: 'firearm' },
     2: { name: 'knife' },
-    3: { name: 'grenade' }
 };
 const PERSON_CLASS = 'person';
-const WEAPON_CLASSES = new Set(['firearm', 'knife', 'grenade']);
+const WEAPON_CLASSES = new Set(['firearm', 'knife']);
 // We can treat grenades/heavy bags as logistics or high-threat
-const LOGISTIC_CLASSES = new Set(['grenade']);
+const LOGISTIC_CLASSES = new Set([]);
 
 // ── STATE ─────────────────────────────────────────
 const $ = id => document.getElementById(id);
@@ -29,6 +28,7 @@ const WEAPON_CONFIRM_FRAMES=4;
 let threatHoldTimer=null;
 let heldThreat='standby'; // the currently "held" threat shown to user
 const THREAT_HOLD_MS=3000; // hold any detected state for 3 seconds minimum
+let speedBuffer = [];
 
 // ── CLOCK ─────────────────────────────────────────
 function tick(){
@@ -88,7 +88,7 @@ async function activate(){
             setLoad('COMPILING DRISHTI NEURAL NETWORK...', 60);
             
             // PATH: Update this to where you uploaded your REMASTERED_LABELS/TFJS export
-            model = await tf.loadGraphModel('./models/drishti_v1_tfjs/model.json'); 
+            model = await tf.loadGraphModel('./models/drishti_v2_tfjs/model.json'); 
             
             setLoad('DRISHTI AI READY — CALIBRATING...', 88);
             $('dAI').className = 'dot on'; 
@@ -183,26 +183,27 @@ async function loop() {
 }
 
 // ── MOTION DETECTION ──────────────────────────────
-// Optimised for long-range outdoor detection (up to 50-80m in good light)
-function getMotion(){
-    if(vid.readyState<2||ov.width<2) return{detected:false,cx:0,cy:0,strength:0};
-    const curr=ctx.getImageData(0,0,ov.width,ov.height);
-    if(!prevFrame){prevFrame=curr;return{detected:false,cx:0,cy:0,strength:0};}
-    const d1=prevFrame.data,d2=curr.data;
-    // Lower threshold = picks up subtle distant movement
-    // sensitivity 1-10: at 5, threshold=22; at 10, threshold=11; at 1, threshold=44
-    const thresh=Math.max(8,(11-sensitivity)*8);
-    let diff=0,sx=0,sy=0; const W=ov.width;
-    // Sample every 4th pixel (denser sampling = catches small distant motion)
-    for(let i=0;i<d1.length;i+=16){
-        const delta=Math.abs(d1[i]-d2[i])+Math.abs(d1[i+1]-d2[i+1])+Math.abs(d1[i+2]-d2[i+2]);
-        if(delta>thresh){diff++;const idx=i/4;sx+=idx%W;sy+=Math.floor(idx/W);}
+// ── FIXED MOTION DETECTION (Noise Resistant) ──
+function getMotion() {
+    if (vid.readyState < 2 || ov.width < 2) return { detected: false };
+    
+    // We sample every 8th pixel to ignore the fine "grain" noise seen in your images
+    const curr = ctx.getImageData(0, 0, ov.width, ov.height);
+    if (!prevFrame) { prevFrame = curr; return { detected: false }; }
+    
+    const d1 = prevFrame.data, d2 = curr.data;
+    const thresh = Math.max(10, (12 - sensitivity) * 5);
+    let diff = 0;
+
+    for (let i = 0; i < d1.length; i += 32) { // Increased step to 32
+        const delta = Math.abs(d1[i] - d2[i]);
+        if (delta > thresh) diff++;
     }
-    prevFrame=curr;
-    // Lower minimum pixel count = detects distant/small movement
-    const minPx=Math.max(5,8-(sensitivity-1));
-    const det=diff>minPx;
-    return{detected:det,cx:det?sx/diff:0,cy:det?sy/diff:0,strength:diff};
+    
+    prevFrame = curr;
+    // Require more pixels to change to trigger "Motion"
+    const isMoving = diff > 50; 
+    return { detected: isMoving };
 }
 
 // ── DRAW DETECTIONS ───────────────────────────────
@@ -266,13 +267,32 @@ function drawDetections(preds,motion){
             ctx.fillText('MOTION DETECTED',motion.cx-55,motion.cy-r-7);
     }
 
-    // Speed from centroid
-    if(preds.length>0&&preds[0].score>0.62){
-            const[x,y,w,h]=preds[0].bbox;
-            const cx=x+w/2,cy=y+h/2;
-            if(lastCen){const dx=cx-lastCen.x,dy=cy-lastCen.y;speed=Math.min(Math.round(Math.sqrt(dx*dx+dy*dy)*(fps||15)*0.036),120);}
-            lastCen={x:cx,y:cy};
+    // IMPROVED SPEED LOGIC
+    if (preds.length > 0) {
+        const [x, y, w, h] = preds[0].bbox;
+        const cx = x + w / 2;
+        const cy = y + h / 2;
+
+        if (lastCen) {
+            const dx = cx - lastCen.x;
+            const dy = cy - lastCen.y;
+            // Calculate instantaneous speed
+            const instantSpeed = Math.sqrt(dx * dx + dy * dy) * (fps || 15) * 0.036;
+            
+            // Add to buffer and keep only last 10 entries
+            speedBuffer.push(instantSpeed);
+            if (speedBuffer.length > 10) speedBuffer.shift();
+            
+            // Average the speed to stop the jumping numbers
+            speed = Math.round(speedBuffer.reduce((a, b) => a + b) / speedBuffer.length);
+        }
+        lastCen = { x: cx, y: cy };
+    } else {
+        speedBuffer = []; // Reset if target is lost
     }
+
+    // Update UI
+    $('hSpd').textContent = speed > 2 ? speed : 0; // Ignore micro-jitters below 2km/h
 
     $('hP').textContent = persons; 
     $('hW').textContent = weapons;
@@ -426,7 +446,7 @@ function simPreds(type){
         p.push({class:'firearm', score:0.88, bbox:[cw*0.22, ch*0.52, cw*0.09, ch*0.22]});
     } else {
         // Use 'grenade' or just keep as motion for testing logistics
-        p.push({class:'grenade', score:0.74, bbox:[cw*0.16, ch*0.34, cw*0.13, ch*0.28]});
+        p.push({class:'knife', score:0.74, bbox:[cw*0.16, ch*0.34, cw*0.13, ch*0.28]});
     }
     return p;
 }
@@ -487,7 +507,7 @@ function processYOLO(output) {
         }
 
         // FIX: Define clsId INSIDE the score check
-        if (maxScore > 0.45) { 
+        if (maxScore > 0.30) { 
             const clsId = classes.indexOf(maxScore);
             
             // Convert center [cx, cy, w, h] to corner [y1, x1, y2, x2] for TFJS NMS
@@ -509,14 +529,22 @@ function processYOLO(output) {
     
     return nmsIndices.map(idx => {
         const [y1, x1, y2, x2] = boxes[idx];
+        const labelData = LABELS[classIds[idx]] || { name: 'unknown' };
+        
+        // We need to determine the scale based on the "Max" dimension 
+        // because that's what the padding logic used.
+        const size = Math.max(ov.width, ov.height);
+        const offsetX = (size - ov.width) / 2;
+        const offsetY = (size - ov.height) / 2;
+
         return {
-            class: LABELS[classIds[idx]].name,
+            class: labelData.name,
             score: scores[idx],
             bbox: [
-                x1 * ov.width,        // Scaling normalized 0-1 back to canvas
-                y1 * ov.height, 
-                (x2 - x1) * ov.width, 
-                (y2 - y1) * ov.height
+                x1 * size - offsetX,           // Corrected X
+                y1 * size - offsetY,           // Corrected Y
+                (x2 - x1) * size,              // Corrected Width
+                (y2 - y1) * size               // Corrected Height
             ]
         };
     });

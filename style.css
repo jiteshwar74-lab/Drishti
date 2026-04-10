@@ -90,11 +90,11 @@ animation:idlep 3s ease-in-out infinite;}
 .idle-ring svg{width:48%;height:48%;opacity:0.45;}
 .idle-txt{font-family:‘Share Tech Mono’,monospace;font-size:11px;color:var(–dim);
 letter-spacing:2px;text-align:center;line-height:2.3;}
-.act-btn{font-family:‘Orbitron’,monospace;font-size:12px;font-weight:700;letter-spacing:4px;
-padding:15px 38px;border:2px solid var(–g);background:transparent;color:var(–g);
+.act-btn{font-family:‘Orbitron’,monospace;font-size:12px;font-weight:700;letter-spacing:4px; font-color:var(--g2);
+padding:15px 38px;border:2px solid var(–g);background:transparent;color:#246040;
 cursor:pointer;transition:all 0.2s;text-shadow:0 0 10px rgba(0,255,136,0.3);
-box-shadow:0 0 18px rgba(0,255,136,0.1);}
-.act-btn:hover{background:rgba(0,255,136,0.05);box-shadow:0 0 28px rgba(0,255,136,0.22);}
+box-shadow:0 0 18px rgba(0, 255, 136, 0.281);}
+.act-btn:hover{background:rgba(6, 255, 139, 0.507);box-shadow:0 0 28px rgba(0,255,136,0.22);}
 .act-btn:active{transform:scale(0.97);}
 
 /* Loading screen */
