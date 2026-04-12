@@ -1,0 +1,23 @@
+description: Ultralytics best model trained on E:\AI ML\DRISHTI\datasets\drishti_full_v4\drishti_v4.yaml
+author: Ultralytics
+date: '2026-04-12T09:02:43.561659'
+version: 8.4.36
+license: AGPL-3.0 License (https://ultralytics.com/license)
+docs: https://docs.ultralytics.com
+stride: 32
+task: detect
+batch: 1
+imgsz:
+- 640
+- 640
+names:
+  0: person
+  1: Firearm
+  2: knife
+args:
+  batch: 1
+  half: false
+  int8: false
+  nms: false
+channels: 3
+end2end: false

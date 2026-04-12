@@ -1,7 +1,7 @@
 import tensorflowjs as tfjs
 
 # Paths
-input_path = r"E:/AI ML/DRISHTI/runs/models/drishti_v4_final/weights/best_saved_model"
+input_path = r"E:/AI ML/DRISHTI/models/drishti_v5_nano_web/weights/best_saved_model"
 output_path = r"E:/AI ML/DRISHTI/models/drishti_v2_tfjs"
 
 print("--- Starting Minimalist Conversion ---")
