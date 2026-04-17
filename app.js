@@ -88,7 +88,7 @@ async function activate(){
             setLoad('COMPILING DRISHTI NEURAL NETWORK...', 60);
             
             // PATH: Update this to where you uploaded your REMASTERED_LABELS/TFJS export
-            model = await tf.loadGraphModel('./models/drishti_v3_tfjs/model.json'); 
+            model = await tf.loadGraphModel('./models/drishti_v5_nano_web/weights/best_web_model/model.json'); 
             
             setLoad('DRISHTI AI READY — CALIBRATING...', 88);
             $('dAI').className = 'dot on'; 
