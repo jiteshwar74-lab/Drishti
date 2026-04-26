@@ -1,0 +1,51 @@
+🔥 1. Fix box alignment perfectly (letterbox reverse)
+
+Right now boxes are:
+
+~almost correct
+
+Next step:
+
+100% accurate mapping
+🔥 2. Improve performance
+
+Your current pipeline:
+
+Bitmap + getPixel (slow)
+
+Later:
+
+Direct YUV → ByteBuffer (fast)
+🔥 3. Add detection toggle (you asked earlier)
+ON/OFF detection button
+🔥 4. Add alert system (your original goal)
+if firearm/knife detected → sound alarm
+
+
+override fun onDraw(canvas: Canvas) {
+    super.onDraw(canvas)
+
+    for (det in detections) {
+
+        // Convert normalized → screen coordinates
+        val left = (det.x - det.w / 2f) * width
+        val top = (det.y - det.h / 2f) * height
+        val right = (det.x + det.w / 2f) * width
+        val bottom = (det.y + det.h / 2f) * height
+
+        canvas.drawRect(left, top, right, bottom, boxPaint)
+
+        val label = when (det.cls) {
+            0 -> "Person"
+            1 -> "Firearm"
+            else -> "Knife"
+        }
+
+        canvas.drawText(
+            "$label ${"%.2f".format(det.conf)}",
+            left,
+            top - 10,
+            textPaint
+        )
+    }
+}
